@@ -417,6 +417,10 @@
 	status = "okay";
 };
 
+&route_hdmi {
+	status = "okay";
+};
+
 &saradc {
 	vref-supply = <&vcc_18>;
 	status = "okay";
@@ -480,6 +484,10 @@
 };
 
 &vopl {
+	status = "okay";
+};
+
+&vopb {
 	status = "okay";
 };
 
