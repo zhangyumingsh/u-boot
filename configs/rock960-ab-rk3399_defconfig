@@ -103,3 +103,5 @@ CONFIG_DRM_ROCKCHIP_RGB=y
 CONFIG_LCD=y
 CONFIG_USE_TINY_PRINTF=y
 CONFIG_ERRNO_STR=y
+CONFIG_USE_BOOTARGS=y
+CONFIG_BOOTARGS="androidboot.baseband=N/A androidboot.selinux=permissive androidboot.hardware=rk30board androidboot.console=ttyFIQ0 init=/init"
