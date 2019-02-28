@@ -170,8 +170,20 @@ static int do_rkusb(cmd_tbl_t *cmdtp, int flag, int argc, char *const argv[])
 	}
 
 	s = env_get("serial#");
-	if (s)
-		g_dnl_set_serialnumber((char *)s);
+    if (s) {
+        char *ps = (char *)s;
+        int tmp_len = strlen(s);
+        char tmp[256] = {0};
+        for(int i = 0; i < tmp_len; i++){
+            if((*ps) == '\\' || (*ps) == '/'){
+                tmp[i] = '_';
+            }else{
+                tmp[i] = *ps;
+            }
+            ps++;
+        }
+        g_dnl_set_serialnumber(tmp);
+    }
 
 	rc = g_dnl_register("rkusb_ums_dnl");
 	if (rc) {
