@@ -37,7 +37,9 @@ SEC=1
 PATH=../rkbin/bin/rk33/rk3399_bl31_v1.18.elf
 ADDR=0x10000
 [BL32_OPTION]
-SEC=0
+SEC=1
+PATH=../rkbin/bin/rk33/rk3399_bl32_v1.13.bin
+ADDR=0x08400000
 [BL33_OPTION]
 SEC=0
 [OUTPUT]
