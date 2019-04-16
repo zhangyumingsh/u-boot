@@ -120,6 +120,10 @@ int rk_board_init(void)
 		val = VCCIO3_SEL_BY_IOVSEL3 << IOVSEL3_CTRL_SHIFT |
 		      VCCIO3_3V3 << IOVSEL3_SHIFT;
 	rk_clrsetreg(&grf->soc_con0, IOVSEL3_CTRL_MASK | IOVSEL3_MASK, val);
+	if (grf->chip_id == 0x3308)
+		rk_clrsetreg(&grf->soc_con15, 0xff, 0x99);
+	rk_clrsetreg(&grf->gpio3a_iomux, 0xffff, 0x5555);
+	rk_clrsetreg(&grf->gpio3b_iomux, 0x77ff, 0x1155);
 
 	gpio_free(GPIO0_A4);
 	return 0;
