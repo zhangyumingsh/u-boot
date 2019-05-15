@@ -14,7 +14,7 @@
 #include <dt-bindings/input/input.h>
 
 / {
-	model = "Rockchip RK3399 Evaluation Board";
+	model = "Rockchip RK3399 rockpi4b Board";
 	compatible = "rockchip,rk3399-evb", "rockchip,rk3399",
 		     "google,rk3399evb-rev2";
 
@@ -74,6 +74,17 @@
 		regulator-boot-on;
 		regulator-min-microvolt = <3300000>;
 		regulator-max-microvolt = <3300000>;
+	};
+
+	vcc3v3_pcie: vcc3v3-pcie-regulator {
+		compatible = "regulator-fixed";
+		enable-active-high;
+		gpio = <&gpio2 26 GPIO_ACTIVE_HIGH>;
+		pinctrl-0 = <&pcie_drv>;
+		regulator-boot-on;
+		regulator-always-on;
+		regulator-name = "vcc3v3_pcie";
+		vin-supply = <&vcc3v3_sys>;
 	};
 
 	vcc_phy: vcc-phy-regulator {
@@ -331,6 +342,18 @@
 	};
 };
 
+&pcie_phy {
+	status = "okay";
+};
+
+&pcie0 {
+	ep-gpios = <&gpio4 27 GPIO_ACTIVE_HIGH>;
+	num-lanes = <4>;
+	pinctrl-names = "default";
+	pinctrl-0 = <&pcie_clkreqnb_cpm>;
+	status = "okay";
+};
+
 &pinctrl {
 	pmic {
 		pmic_int_l: pmic-int-l {
@@ -341,6 +364,14 @@
 		pmic_dvs2: pmic-dvs2 {
 			rockchip,pins =
 				<1 18 RK_FUNC_GPIO &pcfg_pull_down>;
+		};
+	};
+
+	pcie {
+		pcie_drv: pcie-drv {
+			rockchip,pins =
+				<2 26 RK_FUNC_GPIO &pcfg_pull_none>;
+		//		<4 27 RK_FUNC_GPIO &pcfg_pull_up>;
 		};
 	};
 };
