@@ -171,7 +171,7 @@ int get_bootdev_type(void)
 
 	if (!strcmp(devtype, "mmc")) {
 		type = IF_TYPE_MMC;
-		if (devnum == 1)
+		if (devnum == 0)
 			boot_media = "sd";
 		else
 			boot_media = "emmc";

@@ -110,12 +110,12 @@ void boot_devtype_init(void)
 		switch (t->u.bootdev.devtype) {
 		case BOOT_TYPE_EMMC:
 			devtype = "mmc";
-			devnum = "0";
+			devnum = "1";
 			break;
 		case BOOT_TYPE_SD0:
 		case BOOT_TYPE_SD1:
 			devtype = "mmc";
-			devnum = "1";
+			devnum = "0";
 			break;
 		case BOOT_TYPE_NAND:
 			devtype = "rknand";

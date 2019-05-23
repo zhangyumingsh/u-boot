@@ -185,6 +185,8 @@
 		clock-names = "baudclk", "apb_pclk";
 		reg-shift = <2>;
 		reg-io-width = <4>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&uart2m0_xfer>;
 		status = "disabled";
 	};
 
