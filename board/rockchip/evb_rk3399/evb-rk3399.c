@@ -18,6 +18,7 @@
 #include <usb.h>
 #include <dwc3-uboot.h>
 #include <spl.h>
+#include <asm/gpio.h>
 
 DECLARE_GLOBAL_DATA_PTR;
 
@@ -164,13 +165,16 @@ static void setup_serial(void)
 	return;
 }
 
+#define GPIO_PCIE_PWR 69
+
 int misc_init_r(void)
 {
 #if (defined CONFIG_TARGET_ROCK960AB_RK3399) || (defined CONFIG_TARGET_ROCK960C_RK3399)
-	printf("Enable PCIE Power\n");
-
+	printf("Enable PCIE Power for ROCK960 board\n");
 	__raw_writel(0xffff0001, (void __iomem *)0xff77e640);
+	gpio_direction_output(GPIO_PCIE_PWR, 1);
 #endif
+
 	setup_serial();
 	setup_macaddr();
 
