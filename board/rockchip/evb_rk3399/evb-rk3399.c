@@ -165,14 +165,37 @@ static void setup_serial(void)
 	return;
 }
 
-#define GPIO_PCIE_PWR 69
+static void rk3399_force_pcie_power_on(void)
+{
+	ofnode node;
+	struct gpio_desc pcie_pwr_gpio;
+
+	printf("%s: trying to force pcie power on\n", __func__);
+
+	node = ofnode_path("/config");
+	if (!ofnode_valid(node)) {
+		printf("%s: no /config node?\n", __func__);
+		return;
+	}
+
+	if (gpio_request_by_name_nodev(node, "pcie-pwr-gpio", 0,
+				       &pcie_pwr_gpio, GPIOD_IS_OUT)) {
+		printf("%s: could not find a /config/pcie-pwr-gpio\n", __func__);
+		return;
+	}
+
+	dm_gpio_set_value(&pcie_pwr_gpio, 1);
+}
 
 int misc_init_r(void)
 {
 #if (defined CONFIG_TARGET_ROCK960AB_RK3399) || (defined CONFIG_TARGET_ROCK960C_RK3399)
 	printf("Enable PCIE Power for ROCK960 board\n");
 	__raw_writel(0xffff0001, (void __iomem *)0xff77e640);
-	gpio_direction_output(GPIO_PCIE_PWR, 1);
+	rk3399_force_pcie_power_on();
+#elif (defined CONFIG_TARGET_ROCKPI4_RK3399)
+	printf("Enable PCIE Power for ROCKPI4 board\n");
+	rk3399_force_pcie_power_on();
 #endif
 
 	setup_serial();

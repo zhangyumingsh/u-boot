@@ -41,6 +41,11 @@ config TARGET_ROCK960C_RK3399
 	help
 	  ROCK960c board is a ROCKCHIP RK3399 based SBC by Vamrs.
 
+config TARGET_ROCKPI4_RK3399
+	bool "ROCK PI 4 board"
+	help
+	  ROCK PI 4 board is a ROCKCHIP RK3399 based SBC by Radxa.
+
 config SYS_SOC
 	default "rockchip"
 
