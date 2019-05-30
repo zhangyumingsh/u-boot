@@ -13,9 +13,13 @@
 #include <linux/media-bus-format.h>
 
 / {
-	model = "Rockchip RK3399 Evaluation Board";
+	model = "ROCK960c Board";
 	compatible = "rockchip,rk3399-evb", "rockchip,rk3399",
 		     "google,rk3399evb-rev2";
+
+	config {
+		pcie-pwr-gpio = <&gpio2 RK_PA5 GPIO_ACTIVE_HIGH>;
+	};
 
 	chosen {
 		stdout-path = &uart2;
