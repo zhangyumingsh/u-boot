@@ -38,6 +38,7 @@ obj-$(CONFIG_CMD_CONFIG) += config.o
 obj-$(CONFIG_CMD_CONSOLE) += console.o
 obj-$(CONFIG_CMD_CPU) += cpu.o
 obj-$(CONFIG_CMD_CHARGE_DISPLAY) += charge.o
+obj-$(CONFIG_CMD_CRYPTO) += crypto.o
 obj-$(CONFIG_DATAFLASH_MMC_SELECT) += dataflash_mmc_mux.o
 obj-$(CONFIG_CMD_DATE) += date.o
 obj-$(CONFIG_CMD_DEMO) += demo.o
@@ -87,6 +88,7 @@ obj-$(CONFIG_ID_EEPROM) += mac.o
 obj-$(CONFIG_CMD_MD5SUM) += md5sum.o
 obj-$(CONFIG_CMD_MEMORY) += mem.o
 obj-$(CONFIG_CMD_MEMTESTER) += memtester/
+obj-$(CONFIG_CMD_DDR_TEST_TOOL) += ddr_tool/
 obj-$(CONFIG_CMD_IO) += io.o
 obj-$(CONFIG_CMD_MFSL) += mfsl.o
 obj-$(CONFIG_CMD_MII) += mii.o
@@ -98,6 +100,7 @@ obj-$(CONFIG_CMD_MMC) += mmc.o
 obj-$(CONFIG_CMD_MMC_SPI) += mmc_spi.o
 obj-$(CONFIG_MP) += mp.o
 obj-$(CONFIG_CMD_MTDPARTS) += mtdparts.o
+obj-$(CONFIG_CMD_MTD) += mtd.o
 obj-$(CONFIG_CMD_NAND) += nand.o
 obj-$(CONFIG_CMD_NET) += net.o
 obj-$(CONFIG_CMD_ONENAND) += onenand.o
@@ -154,6 +157,8 @@ obj-$(CONFIG_CMD_ZFS) += zfs.o
 obj-$(CONFIG_CMD_DFU) += dfu.o
 obj-$(CONFIG_CMD_GPT) += gpt.o
 obj-$(CONFIG_CMD_ETHSW) += ethsw.o
+
+obj-$(CONFIG_OPTEE_CLIENT) += optee.o
 
 # Power
 obj-$(CONFIG_CMD_PMIC) += pmic.o

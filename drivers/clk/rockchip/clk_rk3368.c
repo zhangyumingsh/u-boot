@@ -774,6 +774,47 @@ static ulong rk3368_vop_set_clk(struct rk3368_cru *cru, int clk_id, uint hz)
 
 	return 0;
 }
+
+static ulong rk3368_alive_get_clk(struct rk3368_clk_priv *priv)
+{
+	struct rk3368_cru *cru = priv->cru;
+	u32 div, con, parent;
+
+	con = readl(&cru->clksel_con[10]);
+	div = (con & PCLK_ALIVE_DIV_CON_MASK) >>
+	      PCLK_ALIVE_DIV_CON_SHIFT;
+	parent = GPLL_HZ;
+	return DIV_TO_RATE(parent, div);
+}
+
+static ulong rk3368_crypto_get_rate(struct rk3368_clk_priv *priv)
+{
+	struct rk3368_cru *cru = priv->cru;
+	u32 div, val;
+
+	val = readl(&cru->clksel_con[10]);
+	div = (val & CLK_CRYPTO_DIV_CON_MASK) >> CLK_CRYPTO_DIV_CON_SHIFT;
+
+	return DIV_TO_RATE(rk3368_bus_get_clk(priv->cru, ACLK_BUS), div);
+}
+
+static ulong rk3368_crypto_set_rate(struct rk3368_clk_priv *priv,
+				    uint hz)
+{
+	struct rk3368_cru *cru = priv->cru;
+	int src_clk_div;
+	uint p_rate;
+
+	p_rate = rk3368_bus_get_clk(priv->cru, ACLK_BUS);
+	src_clk_div = DIV_ROUND_UP(p_rate, hz) - 1;
+	assert(src_clk_div < 3);
+
+	rk_clrsetreg(&cru->clksel_con[10],
+		     CLK_CRYPTO_DIV_CON_MASK,
+		     src_clk_div << CLK_CRYPTO_DIV_CON_SHIFT);
+
+	return rk3368_crypto_get_rate(priv);
+}
 #endif
 
 static ulong rk3368_armclk_set_clk(struct rk3368_clk_priv *priv,
@@ -893,6 +934,12 @@ static ulong rk3368_clk_get_rate(struct clk *clk)
 	case DCLK_VOP:
 		rate =  rk3368_vop_get_clk(priv->cru, clk->id);
 		break;
+	case PCLK_WDT:
+		rate = rk3368_alive_get_clk(priv);
+		break;
+	case SCLK_CRYPTO:
+		rate = rk3368_crypto_get_rate(priv);
+		break;
 #endif
 	default:
 		return -ENOENT;
@@ -920,8 +967,14 @@ static ulong rk3368_clk_set_rate(struct clk *clk, ulong rate)
 		ret = rkclk_set_pll(priv->cru, clk->id - 1, &pll_config);
 		break;
 	case ARMCLKB:
+		if (priv->armbclk_hz)
+			ret = rk3368_armclk_set_clk(priv, clk->id, rate);
+		priv->armbclk_hz = rate;
+		break;
 	case ARMCLKL:
-		ret = rk3368_armclk_set_clk(priv, clk->id, rate);
+		if (priv->armlclk_hz)
+			ret = rk3368_armclk_set_clk(priv, clk->id, rate);
+		priv->armlclk_hz = rate;
 		break;
 	case SCLK_SPI0 ... SCLK_SPI2:
 		ret = rk3368_spi_set_clk(priv->cru, clk->id, rate);
@@ -963,6 +1016,9 @@ static ulong rk3368_clk_set_rate(struct clk *clk, ulong rate)
 		break;
 	case ACLK_CCI_PRE:
 		ret =  0;
+		break;
+	case SCLK_CRYPTO:
+		ret = rk3368_crypto_set_rate(priv, rate);
 		break;
 #endif
 	default:
@@ -1195,13 +1251,24 @@ static int rk3368_clk_probe(struct udevice *dev)
 
 	priv->cru = map_sysmem(plat->dtd.reg[0], plat->dtd.reg[1]);
 #endif
+	priv->sync_kernel = false;
+	if (!priv->armlclk_enter_hz)
+		priv->armlclk_enter_hz = rkclk_pll_get_rate(priv->cru, APLLL);
+	if (!priv->armbclk_enter_hz)
+		priv->armbclk_enter_hz = rkclk_pll_get_rate(priv->cru, APLLB);
 #if IS_ENABLED(CONFIG_SPL_BUILD) || IS_ENABLED(CONFIG_TPL_BUILD)
 	rkclk_init(priv->cru);
 #endif
+	if (!priv->armlclk_init_hz)
+		priv->armlclk_init_hz = rkclk_pll_get_rate(priv->cru, APLLL);
+	if (!priv->armbclk_init_hz)
+		priv->armbclk_init_hz = rkclk_pll_get_rate(priv->cru, APLLB);
 	/* Process 'assigned-{clocks/clock-parents/clock-rates}' properties */
 	ret = clk_set_defaults(dev);
 	if (ret)
 		debug("%s clk_set_defaults failed %d\n", __func__, ret);
+	else
+		priv->sync_kernel = true;
 	return 0;
 }
 
@@ -1281,6 +1348,7 @@ U_BOOT_DRIVER(rockchip_rk3368_cru) = {
 int soc_clk_dump(void)
 {
 	struct udevice *cru_dev;
+	struct rk3368_clk_priv *priv;
 	const struct rk3368_clk_info *clk_dump;
 	struct clk clk;
 	unsigned long clk_count = ARRAY_SIZE(clks_dump);
@@ -1295,7 +1363,19 @@ int soc_clk_dump(void)
 		return ret;
 	}
 
-	printf("CLK:");
+	priv = dev_get_priv(cru_dev);
+	printf("CLK: (%s. arml: enter %lu KHz, init %lu KHz, kernel %lu%s)\n",
+	       priv->sync_kernel ? "sync kernel" : "uboot",
+	       priv->armlclk_enter_hz / 1000,
+	       priv->armlclk_init_hz / 1000,
+	       priv->set_armclk_rate ? priv->armlclk_hz / 1000 : 0,
+	       priv->set_armclk_rate ? " KHz" : "N/A");
+	printf("CLK: (%s. armb: enter %lu KHz, init %lu KHz, kernel %lu%s)\n",
+	       priv->sync_kernel ? "sync kernel" : "uboot",
+	       priv->armbclk_enter_hz / 1000,
+	       priv->armbclk_init_hz / 1000,
+	       priv->set_armclk_rate ? priv->armlclk_hz / 1000 : 0,
+	       priv->set_armclk_rate ? " KHz" : "N/A");
 	for (i = 0; i < clk_count; i++) {
 		clk_dump = &clks_dump[i];
 		if (clk_dump->name) {
@@ -1309,18 +1389,18 @@ int soc_clk_dump(void)
 			clk_free(&clk);
 			if (i == 0) {
 				if (rate < 0)
-					printf("%10s%20s\n", clk_dump->name,
+					printf("  %s %s\n", clk_dump->name,
 					       "unknown");
 				else
-					printf("%10s%20lu Hz\n", clk_dump->name,
-					       rate);
+					printf("  %s %lu KHz\n", clk_dump->name,
+					       rate / 1000);
 			} else {
 				if (rate < 0)
-					printf("%14s%20s\n", clk_dump->name,
+					printf("  %s %s\n", clk_dump->name,
 					       "unknown");
 				else
-					printf("%14s%20lu Hz\n", clk_dump->name,
-					       rate);
+					printf("  %s %lu KHz\n", clk_dump->name,
+					       rate / 1000);
 			}
 		}
 	}

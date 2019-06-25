@@ -11,7 +11,6 @@
 #include <asm/arch/grf_px30.h>
 #include <asm/arch/hardware.h>
 #include <asm/arch/uart.h>
-#include <asm/armv8/mmu.h>
 #include <asm/arch/clock.h>
 #include <asm/arch/cru_px30.h>
 #include <dt-bindings/clock/px30-cru.h>
@@ -25,6 +24,9 @@
 #define QOS_PRIORITY			0x08
 
 #define QOS_PRIORITY_LEVEL(h, l)	((((h) & 3) << 8) | ((l) & 3))
+
+#ifdef CONFIG_ARM64
+#include <asm/armv8/mmu.h>
 
 static struct mm_region px30_mem_map[] = {
 	{
@@ -47,6 +49,7 @@ static struct mm_region px30_mem_map[] = {
 };
 
 struct mm_region *mem_map = px30_mem_map;
+#endif
 
 int arch_cpu_init(void)
 {
@@ -204,6 +207,7 @@ int set_armclk_rate(void)
 		printf("Failed to set armclk %lu\n", priv->armclk_hz);
 		return ret;
 	}
+	priv->set_armclk_rate = true;
 
 	return 0;
 }

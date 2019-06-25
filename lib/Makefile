@@ -29,6 +29,10 @@ obj-$(CONFIG_GZIP_COMPRESSED) += gzip.o
 obj-$(CONFIG_GENERATE_SMBIOS_TABLE) += smbios.o
 obj-y += initcall.o
 obj-$(CONFIG_LMB) += lmb.o
+ifdef CONFIG_LMB
+obj-$(CONFIG_SYSMEM) += sysmem.o
+obj-$(CONFIG_BIDRAM) += bidram.o
+endif
 obj-y += ldiv.o
 obj-$(CONFIG_LZ4) += lz4_wrapper.o
 obj-$(CONFIG_MD5) += md5.o

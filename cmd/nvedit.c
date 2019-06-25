@@ -52,9 +52,10 @@ DECLARE_GLOBAL_DATA_PTR;
 	!defined(CONFIG_ENV_IS_IN_SPI_FLASH)	&& \
 	!defined(CONFIG_ENV_IS_IN_REMOTE)	&& \
 	!defined(CONFIG_ENV_IS_IN_UBI)		&& \
+	!defined(CONFIG_ENV_IS_IN_BLK_DEV)	&& \
 	!defined(CONFIG_ENV_IS_NOWHERE)
 # error Define one of CONFIG_ENV_IS_IN_{EEPROM|FLASH|MMC|FAT|EXT4|\
-NAND|NVRAM|ONENAND|SATA|SPI_FLASH|REMOTE|UBI} or CONFIG_ENV_IS_NOWHERE
+NAND|NVRAM|ONENAND|SATA|SPI_FLASH|REMOTE|UBI|BLK_DEV} or CONFIG_ENV_IS_NOWHERE
 #endif
 
 /*
@@ -658,9 +659,9 @@ int env_set_ulong(const char *varname, ulong value)
  */
 int env_set_hex(const char *varname, ulong value)
 {
-	char str[17];
+	char str[19];
 
-	sprintf(str, "%lx", value);
+	sprintf(str, "0x%lx", value);
 	return env_set(varname, str);
 }
 
