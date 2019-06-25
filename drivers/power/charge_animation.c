@@ -11,7 +11,6 @@
 #include <dm.h>
 #include <errno.h>
 #include <key.h>
-#include <rtc.h>
 #include <pwm.h>
 #include <asm/arch/rockchip_smccc.h>
 #include <asm/suspend.h>
@@ -43,7 +42,6 @@ struct charge_image {
 struct charge_animation_priv {
 	struct udevice *pmic;
 	struct udevice *fg;
-	struct udevice *rtc;
 	const struct charge_image *image;
 	int image_num;
 
@@ -114,16 +112,7 @@ static int check_key_press(struct udevice *dev)
 {
 	struct charge_animation_pdata *pdata = dev_get_platdata(dev);
 	struct charge_animation_priv *priv = dev_get_priv(dev);
-	u32 state, rtc_state = 0;
-
-#ifdef CONFIG_DM_RTC
-	if (priv->rtc)
-		rtc_state = rtc_alarm_trigger(priv->rtc);
-#endif
-	if (rtc_state) {
-		printf("rtc alarm trigger...\n");
-		return KEY_PRESS_LONG_DOWN;
-	}
+	u32 state;
 
 	state = key_read(KEY_POWER);
 	if (state < 0)
@@ -682,7 +671,7 @@ static const struct dm_charge_display_ops charge_animation_ops = {
 static int charge_animation_probe(struct udevice *dev)
 {
 	struct charge_animation_priv *priv = dev_get_priv(dev);
-	struct udevice *fg, *pmic, *rtc;
+	struct udevice *fg, *pmic;
 	int ret, soc;
 
 	/* Get PMIC: used for power off system  */
@@ -706,16 +695,6 @@ static int charge_animation_probe(struct udevice *dev)
 		return ret;
 	}
 	priv->fg = fg;
-
-	/* Get rtc: used for power on */
-	ret = uclass_get_device(UCLASS_RTC, 0, &rtc);
-	if (ret) {
-		if (ret == -ENODEV)
-			debug("Can't find RTC\n");
-		else
-			debug("Get UCLASS RTC failed: %d\n", ret);
-	}
-	priv->rtc = rtc;
 
 	/* Get PWRKEY: used for wakeup and turn off/on LCD */
 	if (key_read(KEY_POWER) == KEY_NOT_EXIST) {
