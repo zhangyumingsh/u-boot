@@ -96,8 +96,7 @@ typedef struct AvbABData {
   AvbABSlotData slots[2];
 
   /* Reserved for future use. */
-  uint8_t last_boot;
-  uint8_t reserved2[11];
+  uint8_t reserved2[12];
 
   /* CRC32 of all 28 bytes preceding this field. */
   uint32_t crc32;
