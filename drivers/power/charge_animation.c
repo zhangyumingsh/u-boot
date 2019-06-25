@@ -35,7 +35,7 @@ DECLARE_GLOBAL_DATA_PTR;
 #define IMAGE_RESET_IDX				-1
 #define IMAGE_SOC_100_IDX(n)			((n) - 2)
 #define IMAGE_LOWPOWER_IDX(n)			((n) - 1)
-#define SYSTEM_SUSPEND_DELAY_MS			5000
+
 #define FUEL_GAUGE_POLL_MS			1000
 
 #define LED_CHARGING_NAME			"battery_charging"
@@ -59,8 +59,7 @@ struct charge_animation_priv {
 	int image_num;
 
 	int auto_wakeup_key_state;
-	ulong auto_screen_off_timeout;	/* ms */
-	ulong suspend_delay_timeout;	/* ms */
+	ulong auto_screen_off_timeout;
 };
 
 /*
@@ -171,7 +170,7 @@ static int check_key_press(struct udevice *dev)
  * period timer is useless.
  */
 #ifndef CONFIG_IRQ
-static int system_suspend_enter(struct udevice *dev)
+static int system_suspend_enter(struct charge_animation_pdata *pdata)
 {
 	return 0;
 }
@@ -180,23 +179,8 @@ static void autowakeup_timer_init(struct udevice *dev, uint32_t seconds) {}
 static void autowakeup_timer_uninit(void) {}
 
 #else
-static int system_suspend_enter(struct udevice *dev)
+static int system_suspend_enter(struct charge_animation_pdata *pdata)
 {
-	struct charge_animation_pdata *pdata = dev_get_platdata(dev);
-	struct charge_animation_priv *priv = dev_get_priv(dev);
-
-	/*
-	 * When cpu is in wfi and we try to give a long key press event without
-	 * key release, cpu would wakeup and enter wfi again immediately. So
-	 * here is the problem: cpu can only wakeup when long key released.
-	 *
-	 * Actually, we want cpu can detect long key event without key release,
-	 * so we give a suspend delay timeout for cpu to detect this.
-	 */
-	if (priv->suspend_delay_timeout &&
-	    get_timer(priv->suspend_delay_timeout) <= SYSTEM_SUSPEND_DELAY_MS)
-		return 0;
-
 	if (pdata->system_suspend && IS_ENABLED(CONFIG_ARM_SMCCC)) {
 		printf("\nSystem suspend: ");
 		putc('0');
@@ -225,10 +209,7 @@ static int system_suspend_enter(struct udevice *dev)
 	} else {
 		printf("\nWfi\n");
 		wfi();
-		putc('1');
 	}
-
-	priv->suspend_delay_timeout = get_timer(0);
 
 	/*
 	 * We must wait for key release event finish, otherwise
@@ -381,7 +362,7 @@ static int charge_extrem_low_power(struct udevice *dev)
 		       pdata->low_power_voltage, voltage);
 
 		/* System suspend */
-		system_suspend_enter(dev);
+		system_suspend_enter(pdata);
 
 		/* Update voltage */
 		voltage = fuel_gauge_get_voltage(fg);
@@ -648,7 +629,8 @@ show_images:
 				priv->auto_screen_off_timeout = get_timer(0);
 		} else {
 			priv->auto_screen_off_timeout = 0;
-			system_suspend_enter(dev);
+
+			system_suspend_enter(pdata);
 		}
 
 		mdelay(5);
@@ -691,18 +673,13 @@ show_images:
 			if (screen_on) {
 				charge_show_bmp(NULL); /* Turn off screen */
 				screen_on = false;
-				priv->suspend_delay_timeout = get_timer(0);
 			} else {
 				screen_on = true;
 			}
-
-			printf("screen %s\n", screen_on ? "on" : "off");
 		} else if (key_state == KEY_PRESS_LONG_DOWN) {
 			/* Set screen_on=true anyway when key long pressed */
 			if (!screen_on)
 				screen_on = true;
-
-			printf("screen %s\n", screen_on ? "on" : "off");
 
 			/* Is able to boot now ? */
 			if (soc < pdata->exit_charge_level) {
