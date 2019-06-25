@@ -61,7 +61,7 @@ void avb_abort(void) {
 }
 
 void avb_print(const char* message) {
-  printf("%s", message);
+  fprintf(stderr, "%s", message);
 }
 
 void avb_printv(const char* message, ...) {
@@ -70,7 +70,7 @@ void avb_printv(const char* message, ...) {
 
   va_start(ap, message);
   for (m = message; m != NULL; m = va_arg(ap, const char*)) {
-    printf("%s", m);
+    fprintf(stderr, "%s", m);
   }
   va_end(ap);
 }
