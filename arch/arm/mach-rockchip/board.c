@@ -263,10 +263,12 @@ static int phandles_fixup(void *fdt)
 					if (first_phandle == -1)
 						first_phandle = clocks[j];
 
-					if (clocks[j] != first_phandle)
-						printf("WARN: %s: first cru phandle=%d, this=%d\n",
-						       dev_read_name(dev),
-						       first_phandle, clocks[j]);
+					if (clocks[j] != first_phandle) {
+						debug("WARN: %s: first cru phandle=%d, this=%d\n",
+						      dev_read_name(dev),
+						      first_phandle, clocks[j]);
+						continue;
+					}
 
 					clocks[j] = phandle;
 				}
@@ -578,6 +580,7 @@ int board_initr_caches_fixup(void)
 void board_quiesce_devices(void)
 {
 	hotkey_run(HK_CMDLINE);
+	hotkey_run(HK_CLI);
 
 #ifdef CONFIG_ROCKCHIP_PRELOADER_ATAGS
 	/* Destroy atags makes next warm boot safer */
