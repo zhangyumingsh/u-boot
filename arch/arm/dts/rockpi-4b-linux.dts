@@ -41,6 +41,8 @@
 	vccsys: vccsys {
 		compatible = "regulator-fixed";
 		regulator-name = "vccsys";
+		enable-active-high;
+		gpio = <&gpio3 29 GPIO_ACTIVE_HIGH>;// light up the red led
 		regulator-boot-on;
 		regulator-always-on;
 	};
