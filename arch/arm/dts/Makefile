@@ -56,6 +56,7 @@ dtb-$(CONFIG_ARCH_ROCKCHIP) += \
 	rk3399-puma-ddr1333.dtb \
 	rk3399-puma-ddr1600.dtb \
 	rk3399-puma-ddr1866.dtb \
+	rockpi-4a-linux.dtb \
 	rockpi-4b-linux.dtb \
 	rk3399-rock960-model-c.dtb \
 	rv1108-evb.dtb
