@@ -30,6 +30,8 @@
 
 #define CONFIG_SYS_BOOTM_LEN	(64 << 20)	/* 64M */
 
+#define CONFIG_MISC_INIT_R
+
 /* MMC/SD IP block */
 #define CONFIG_BOUNCE_BUFFER
 

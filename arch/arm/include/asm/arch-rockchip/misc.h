@@ -9,5 +9,8 @@
 int rockchip_cpuid_from_efuse(const u32 cpuid_offset,
 			      const u32 cpuid_length,
 			      u8 *cpuid);
+int rockchip_cpuid_from_otp(const u32 cpuid_offset,
+			      const u32 cpuid_length,
+			      u8 *cpuid);
 int rockchip_cpuid_set(const u8 *cpuid, const u32 cpuid_length);
 int rockchip_setup_macaddr(void);

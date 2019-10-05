@@ -10,7 +10,6 @@
  */
 
 #include <common.h>
-#include <env.h>
 #include <dm.h>
 #include <dm/uclass-internal.h>
 #include <misc.h>
@@ -70,9 +69,36 @@ int rockchip_cpuid_from_efuse(const u32 cpuid_offset,
 	}
 
 	/* read the cpu_id range from the efuses */
-	ret = misc_read(dev, cpuid_offset, cpuid, sizeof(cpuid));
+	ret = misc_read(dev, cpuid_offset, cpuid, cpuid_length);
 	if (ret) {
 		debug("%s: reading cpuid from the efuses failed\n",
+		      __func__);
+		return -1;
+	}
+#endif
+	return 0;
+}
+
+int rockchip_cpuid_from_otp(const u32 cpuid_offset,
+			      const u32 cpuid_length,
+			      u8 *cpuid)
+{
+#if CONFIG_IS_ENABLED(ROCKCHIP_OTP)
+	struct udevice *dev;
+	int ret;
+
+	/* retrieve the device */
+	ret = uclass_get_device_by_driver(UCLASS_MISC,
+					  DM_GET_DRIVER(rockchip_otp), &dev);
+	if (ret) {
+		debug("%s: could not find otp device\n", __func__);
+		return -1;
+	}
+
+	/* read the cpu_id range from the otp */
+	ret = misc_read(dev, cpuid_offset, cpuid, cpuid_length);
+	if (ret) {
+		debug("%s: reading cpuid from the otp failed\n",
 		      __func__);
 		return -1;
 	}
@@ -110,5 +136,7 @@ int rockchip_cpuid_set(const u8 *cpuid, const u32 cpuid_length)
 	env_set("cpuid#", cpuid_str);
 	env_set("serial#", serialno_str);
 
+	debug("cpuid#: %s\n", cpuid_str);
+	debug("serial#: %s\n", serialno_str);
 	return 0;
 }

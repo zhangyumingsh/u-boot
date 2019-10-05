@@ -448,6 +448,10 @@ __weak int misc_init_r(void)
 	if (ret)
 		return ret;
 
+	ret = rockchip_cpuid_from_otp(cpuid_offset, cpuid_length, cpuid);
+	if (ret)
+		return ret;
+
 	ret = rockchip_cpuid_set(cpuid, cpuid_length);
 	if (ret)
 		return ret;
