@@ -34,6 +34,8 @@
 #endif
 #include <of_live.h>
 #include <dm/root.h>
+#include <asm/arch/vendor.h>
+#include <asm/arch-rockchip/misc.h>
 
 DECLARE_GLOBAL_DATA_PTR;
 /* define serialno max length, the max length is 512 Bytes
@@ -431,5 +433,27 @@ int board_usb_init(int index, enum usb_init_type init)
 int board_usb_cleanup(int index, enum usb_init_type init)
 {
 	return 0;
+}
+#endif
+
+#ifdef CONFIG_MISC_INIT_R
+__weak int misc_init_r(void)
+{
+	const u32 cpuid_offset = 0x7;
+	const u32 cpuid_length = 0x10;
+	u8 cpuid[cpuid_length];
+	int ret;
+
+	ret = rockchip_cpuid_from_efuse(cpuid_offset, cpuid_length, cpuid);
+	if (ret)
+		return ret;
+
+	ret = rockchip_cpuid_set(cpuid, cpuid_length);
+	if (ret)
+		return ret;
+
+	ret = rockchip_setup_macaddr();
+
+	return ret;
 }
 #endif
