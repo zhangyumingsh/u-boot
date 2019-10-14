@@ -16,7 +16,7 @@
 #endif
 
 #define CONFIG_SKIP_LOWLEVEL_INIT_ONLY
-#define CONFIG_SYS_MALLOC_LEN		(192 << 20)
+#define CONFIG_SYS_MALLOC_LEN		(32 << 20)
 #define CONFIG_SYS_CBSIZE		1024
 
 #define CONFIG_SPL_FRAMEWORK
@@ -48,8 +48,6 @@
 #define CONFIG_SYS_SDRAM_BASE		0
 #define SDRAM_BANK_SIZE			(2UL << 30)
 #define SDRAM_MAX_SIZE			0xfe000000
-
-#define CONFIG_SPI
 
 #ifndef CONFIG_SPL_BUILD
 /* usb otg */

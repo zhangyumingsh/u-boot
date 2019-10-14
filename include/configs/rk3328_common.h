@@ -9,7 +9,7 @@
 
 #include "rockchip-common.h"
 
-#define CONFIG_SYS_MALLOC_LEN		(128 << 20)
+#define CONFIG_SYS_MALLOC_LEN		(32 << 20)
 #define CONFIG_SYS_CBSIZE		1024
 #define CONFIG_SKIP_LOWLEVEL_INIT
 
@@ -45,8 +45,6 @@
 #define CONFIG_SYS_MMCSD_FS_BOOT_PARTITION	1
 #define CONFIG_SYS_SDRAM_BASE		0
 #define SDRAM_MAX_SIZE			0xff000000
-
-#define CONFIG_SPI
 
 #ifndef CONFIG_SPL_BUILD
 
