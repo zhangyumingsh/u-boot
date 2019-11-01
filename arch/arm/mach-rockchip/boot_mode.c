@@ -116,7 +116,7 @@ void boot_devtype_init(void)
 		if (ret) {
 			/* Set default dev type/num if command not valid */
 			devtype = "mmc";
-			devnum = "0";
+			devnum = "1";
 			env_set("devtype", devtype);
 			env_set("devnum", devnum);
 		}

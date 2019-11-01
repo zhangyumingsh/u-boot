@@ -70,7 +70,6 @@
 	"fdtfile=" FDTFILE \
 	"partitions=" PARTS_DEFAULT \
 	ROCKCHIP_DEVICE_SETTINGS \
-	RKIMG_DET_BOOTDEV \
 	BOOTENV
 
 #endif
