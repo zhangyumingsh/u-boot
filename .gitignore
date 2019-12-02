@@ -90,3 +90,8 @@ GTAGS
 *.orig
 *~
 \#*#
+
+idbloader.img
+trust.img
+trust.ini
+uboot.img
