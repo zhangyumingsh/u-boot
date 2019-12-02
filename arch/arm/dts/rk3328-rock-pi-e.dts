@@ -21,12 +21,15 @@
 		#clock-cells = <0>;
 	};
 
-	vcc3v3_sdmmc: sdmmc-pwren {
+	vcc_sd: sdmmc-regulator {
 		compatible = "regulator-fixed";
-		regulator-name = "vcc3v3";
-		gpio = <&gpio0 30 GPIO_ACTIVE_LOW>;
-		regulator-always-on;
-		regulator-boot-on;
+		gpio = <&gpio0 RK_PD6 GPIO_ACTIVE_LOW>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&sdmmc0m1_gpio>;
+		regulator-name = "vcc_sd";
+		regulator-min-microvolt = <3300000>;
+		regulator-max-microvolt = <3300000>;
+		vin-supply = <&vcc_io>;
 	};
 
 	vcc5v0_host_xhci: vcc5v0-host-xhci-drv {
@@ -37,6 +40,22 @@
 		regulator-min-microvolt = <5000000>;
 		regulator-max-microvolt = <5000000>;
 	};
+};
+
+&cpu0 {
+	cpu-supply = <&vdd_arm>;
+};
+
+&cpu1 {
+	cpu-supply = <&vdd_arm>;
+};
+
+&cpu2 {
+	cpu-supply = <&vdd_arm>;
+};
+
+&cpu3 {
+	cpu-supply = <&vdd_arm>;
 };
 
 &saradc {
@@ -51,23 +70,28 @@
 	bus-width = <4>;
 	cap-mmc-highspeed;
 	cap-sd-highspeed;
-	card-detect-delay = <200>;
 	disable-wp;
+	max-frequency = <150000000>;
 	num-slots = <1>;
 	pinctrl-names = "default";
-	pinctrl-0 = <&sdmmc0_clk>, <&sdmmc0_cmd>, <&sdmmc0_dectn>, <&sdmmc0_bus4>;
+	pinctrl-0 = <&sdmmc0_clk &sdmmc0_cmd &sdmmc0_dectn &sdmmc0_bus4>;
+	supports-sd;
+	vmmc-supply = <&vcc_sd>;
 	status = "okay";
 };
 
 &emmc {
 	bus-width = <8>;
 	cap-mmc-highspeed;
+	mmc-hs200-1_8v;
 	supports-emmc;
 	disable-wp;
 	non-removable;
 	num-slots = <1>;
 	pinctrl-names = "default";
 	pinctrl-0 = <&emmc_clk &emmc_cmd &emmc_bus8>;
+	vmmc-supply = <&vcc_io>;
+	vqmmc-supply = <&vcc_18emmc>;
 	status = "okay";
 };
 
@@ -205,6 +229,18 @@
 			};
 		};
 	};
+};
+
+&io_domains {
+	status = "okay";
+
+	vccio1-supply = <&vcc_io>;
+	vccio2-supply = <&vcc_18emmc>;
+	vccio3-supply = <&vcc_io>;
+	vccio4-supply = <&vcc_io>;
+	vccio5-supply = <&vcc_io>;
+	vccio6-supply = <&vcc_io>;
+	pmuio-supply = <&vcc_io>;
 };
 
 &pinctrl {
