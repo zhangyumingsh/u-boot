@@ -49,6 +49,14 @@ int rockchip_setup_macaddr(void)
 	mac_addr[0] &= 0xfe;  /* clear multicast bit */
 	mac_addr[0] |= 0x02;  /* set local assignment bit (IEEE802) */
 	eth_env_set_enetaddr("ethaddr", mac_addr);
+
+	if (mac_addr[5] >= 255)
+		mac_addr[5] = 0;
+	else
+		mac_addr[5] = mac_addr[5] + 1;
+
+	eth_env_set_enetaddr("eth1addr", mac_addr);
+
 #endif
 	return 0;
 }
