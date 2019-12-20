@@ -509,8 +509,8 @@ pack_loader_image()
 {
 	local mode=$1 files ini
 
-	if [ ! -f ${RKBIN}/RKBOOT/${RKCHIP_LOADER}MINIALL.ini ]; then
-		echo "pack loader failed! Can't find: ${RKBIN}/RKBOOT/${RKCHIP_LOADER}MINIALL.ini"
+	if [ ! -f ${RKBIN}/RKBOOT/${RKCHIP_LOADER}MINIALL_UART0_SD_NAND.ini ]; then
+		echo "pack loader failed! Can't find: ${RKBIN}/RKBOOT/${RKCHIP_LOADER}MINIALL_UART0_SD_NAND.ini"
 		return
 	fi
 
@@ -526,8 +526,8 @@ pack_loader_image()
 			fi
 		done
 	else
-		${RKTOOLS}/boot_merger ${BIN_PATH_FIXUP} ${RKBIN}/RKBOOT/${RKCHIP_LOADER}MINIALL.ini
-		echo "pack loader okay! Input: ${RKBIN}/RKBOOT/${RKCHIP_LOADER}MINIALL.ini"
+		${RKTOOLS}/boot_merger ${BIN_PATH_FIXUP} ${RKBIN}/RKBOOT/${RKCHIP_LOADER}MINIALL_UART0_SD_NAND.ini
+		echo "pack loader okay! Input: ${RKBIN}/RKBOOT/${RKCHIP_LOADER}MINIALL_UART0_SD_NAND.ini"
 	fi
 
 	cd - && mv ${RKBIN}/*_loader_*.bin ./
