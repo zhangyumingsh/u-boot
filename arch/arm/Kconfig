@@ -1600,6 +1600,8 @@ config ARCH_ROCKCHIP
 	select DM_SPI
 	select DM_SPI_FLASH
 	select DM_USB if USB
+	select OF_LIBFDT
+	select OF_LIBFDT_OVERLAY
 	select ENABLE_ARM_SOC_BOOT0_HOOK
 	select OF_CONTROL
 	select SPI
