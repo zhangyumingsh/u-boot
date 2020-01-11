@@ -961,85 +961,70 @@ static void handle_hw_conf(cmd_tbl_t *cmdtp, struct fdt_header *working_fdt, str
 		set_hw_property(working_fdt, "/i2c@ff050000", "status", "disabled", 9);
 	}
 
-	//priority: spi0 > uart0 > i2c2
+	//priority: spi0 > uart0, i2c2
 	if(hw_conf->spi0 == VALUE_ON)
 	{
 		set_hw_property(working_fdt, "/spi@ff120000", "status", "okay", 5);
 		set_hw_property(working_fdt, "/serial@ff0a0000", "status", "disabled", 9);
 		set_hw_property(working_fdt, "/i2c@ff060000", "status", "disabled", 9);
 	}
-	else if(hw_conf->spi0 == VALUE_OFF && hw_conf->uart0 == VALUE_ON)
-	{
-		set_hw_property(working_fdt, "/spi@ff120000", "status", "disabled", 9);
-		set_hw_property(working_fdt, "/serial@ff0a0000", "status", "okay", 5);
-		set_hw_property(working_fdt, "/i2c@ff060000", "status", "disabled", 9);
-	}
-	else if(hw_conf->spi0 == VALUE_OFF && hw_conf->uart0 == VALUE_OFF
-			&& hw_conf->i2c2 == VALUE_ON)
-	{
-		set_hw_property(working_fdt, "/spi@ff120000", "status", "disabled", 9);
-		set_hw_property(working_fdt, "/serial@ff0a0000", "status", "disabled", 9);
-		set_hw_property(working_fdt, "/i2c@ff060000", "status", "okay", 5);
-	}
 	else
 	{
 		set_hw_property(working_fdt, "/spi@ff120000", "status", "disabled", 9);
-		set_hw_property(working_fdt, "/serial@ff0a0000", "status", "disabled", 9);
-		set_hw_property(working_fdt, "/i2c@ff060000", "status", "disabled", 9);
+		if(hw_conf->uart0 == VALUE_ON)
+		{
+			set_hw_property(working_fdt, "/serial@ff0a0000", "status", "okay", 5);
+		}
+		else
+		{
+			set_hw_property(working_fdt, "/serial@ff0a0000", "status", "disabled", 9);
+		}
+		if(hw_conf->i2c2 == VALUE_ON)
+		{
+			set_hw_property(working_fdt, "/i2c@ff060000", "status", "okay", 5);
+		}
+		else
+		{
+			set_hw_property(working_fdt, "/i2c@ff060000", "status", "disabled", 9);
+		}
 	}
 
-	//priority: uart1 > spi2 > uart2,i2c0
-	if(hw_conf->uart1 == VALUE_ON)
+	//priority: spi2 > i2c0, uart2. And i2c0 > uart1
+	if(hw_conf->spi2 == VALUE_ON)
 	{
-		set_hw_property(working_fdt, "/serial@ff0b0000", "status", "okay", 5);
-		set_hw_property(working_fdt, "/spi@ff140000", "status", "disabled", 9);
-		set_hw_property(working_fdt, "/serial@ff0c0000", "status", "disabled", 9);
-		set_hw_property(working_fdt, "/i2c@ff040000", "status", "disabled", 9);
-	}
-	else if(hw_conf->uart1 == VALUE_OFF && hw_conf->spi2 == VALUE_ON)
-	{
-		set_hw_property(working_fdt, "/serial@ff0b0000", "status", "disabled", 9);
 		set_hw_property(working_fdt, "/spi@ff140000", "status", "okay", 5);
 		set_hw_property(working_fdt, "/serial@ff0c0000", "status", "disabled", 9);
 		set_hw_property(working_fdt, "/i2c@ff040000", "status", "disabled", 9);
-	}
-	else if(hw_conf->uart1 == VALUE_OFF && hw_conf->spi2 == VALUE_OFF)
-	{
 		set_hw_property(working_fdt, "/serial@ff0b0000", "status", "disabled", 9);
+	}
+	else
+	{
 		set_hw_property(working_fdt, "/spi@ff140000", "status", "disabled", 9);
-
 		if(hw_conf->uart2 == VALUE_ON)
 		{
 			set_hw_property(working_fdt, "/serial@ff0c0000", "status", "okay", 5);
 		}
-		else if(hw_conf->uart2 == VALUE_OFF)
-		{
-			set_hw_property(working_fdt, "/serial@ff0c0000", "status", "disabled", 9);
-		}
 		else
 		{
 			set_hw_property(working_fdt, "/serial@ff0c0000", "status", "disabled", 9);
 		}
 
+		//priority: i2c0 > uart1
 		if(hw_conf->i2c0 == VALUE_ON)
 		{
 			set_hw_property(working_fdt, "/i2c@ff040000", "status", "okay", 5);
+			set_hw_property(working_fdt, "/serial@ff0b0000", "status", "disabled", 9);
 		}
-		else if(hw_conf->i2c0 == VALUE_OFF)
+		else if(hw_conf->i2c0 == VALUE_OFF && hw_conf->uart1 == VALUE_ON)
 		{
 			set_hw_property(working_fdt, "/i2c@ff040000", "status", "disabled", 9);
+			set_hw_property(working_fdt, "/serial@ff0b0000", "status", "okay", 5);
 		}
 		else
 		{
 			set_hw_property(working_fdt, "/i2c@ff040000", "status", "disabled", 9);
+			set_hw_property(working_fdt, "/serial@ff0b0000", "status", "disabled", 9);
 		}
-	}
-	else
-	{
-		set_hw_property(working_fdt, "/serial@ff0b0000", "status", "disabled", 9);
-		set_hw_property(working_fdt, "/spi@ff140000", "status", "disabled", 9);
-		set_hw_property(working_fdt, "/serial@ff0c0000", "status", "disabled", 9);
-		set_hw_property(working_fdt, "/i2c@ff040000", "status", "disabled", 9);
 	}
 
 	//priority: pwm3 > i2c3
