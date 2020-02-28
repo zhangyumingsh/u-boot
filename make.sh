@@ -528,6 +528,11 @@ pack_loader_image()
 		return
 	fi
 
+	if [ "$RKCHIP" == "RK3399PRO" ] && [ ! -f ${RKBIN}/RKBOOT/${RKCHIP_LOADER}MINIALL_3GB_DDR.ini ]; then
+		echo "pack loader failed! Can't find: ${RKBIN}/RKBOOT/${RKCHIP_LOADER}MINIALL_3GB_DDR.ini"
+		return
+	fi
+
 	cd ${RKBIN}
 
 	if [ "${mode}" = 'all' ]; then
@@ -542,6 +547,8 @@ pack_loader_image()
 	else
 		${RKTOOLS}/boot_merger ${BIN_PATH_FIXUP} ${RKBIN}/RKBOOT/${RKCHIP_LOADER}MINIALL.ini
 		echo "pack loader okay! Input: ${RKBIN}/RKBOOT/${RKCHIP_LOADER}MINIALL.ini"
+		[ "$RKCHIP" == "RK3399PRO" ] && ${RKTOOLS}/boot_merger ${BIN_PATH_FIXUP} ${RKBIN}/RKBOOT/${RKCHIP_LOADER}MINIALL_3GB_DDR.ini
+		echo "pack loader okay! Input: ${RKBIN}/RKBOOT/${RKCHIP_LOADER}MINIALL_3GB_DDR.ini"
 	fi
 
 	cd - && mv ${RKBIN}/*_loader_*.bin ./
