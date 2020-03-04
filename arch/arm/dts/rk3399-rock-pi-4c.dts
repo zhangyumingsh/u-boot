@@ -5,11 +5,11 @@
  */
 
 /dts-v1/;
-#include "rockpi-4-linux.dtsi"
+#include "rk3399-rock-pi-4.dtsi"
 
 / {
-	model = "Rockchip RK3399 rockpi4c Board";
-	compatible = "rockchip,rk3399-evb", "rockchip,rk3399",
+	model = "Radxa ROCK Pi 4C";
+	compatible = "radxa,rockpi4c", "rockchip,rk3399",
 		     "google,rk3399evb-rev2";
 };
 
