@@ -56,11 +56,12 @@ dtb-$(CONFIG_ARCH_ROCKCHIP) += \
 	rk3399-puma-ddr1333.dtb \
 	rk3399-puma-ddr1600.dtb \
 	rk3399-puma-ddr1866.dtb \
-	rk3399pro-rockpi-n10-linux.dtb \
 	rk3399-rock-pi-4a.dtb \
 	rk3399-rock-pi-4b.dtb \
 	rk3399-rock-pi-4c.dtb \
 	rk3399-rock960-model-c.dtb \
+	rk3399pro-ficus2-linux.dtb \
+	rk3399pro-rockpi-n10-linux.dtb \
 	rv1108-evb.dtb
 dtb-$(CONFIG_ARCH_MESON) += \
 	meson-gxbb-odroidc2.dtb
