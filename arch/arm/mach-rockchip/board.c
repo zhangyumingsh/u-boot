@@ -5,6 +5,7 @@
 #include <common.h>
 #include <clk.h>
 #include <dm.h>
+#include <led.h>
 #include <ram.h>
 #include <syscon.h>
 #include <asm/io.h>
@@ -36,6 +37,11 @@ int board_init(void)
 	ret = regulators_enable_boot_on(false);
 	if (ret)
 		debug("%s: Cannot enable boot on regulator\n", __func__);
+#endif
+
+#ifdef CONFIG_LED
+	/* LED setup */
+	led_default_state();
 #endif
 
 	return 0;
