@@ -37,11 +37,11 @@
 	BOOT_TARGET_DEVICES_references_RKNAND_without_CONFIG_CMD_RKNAND
 #endif
 
-/* First try to boot from SD (index 1), then eMMC (index 0) */
+/* First try to boot from SD (index 0), then eMMC (index 1) */
 #if CONFIG_IS_ENABLED(CMD_MMC)
 	#define BOOT_TARGET_MMC(func) \
-		func(MMC, mmc, 1) \
-		func(MMC, mmc, 0)
+		func(MMC, mmc, 0) \
+		func(MMC, mmc, 1)
 #else
 	#define BOOT_TARGET_MMC(func)
 #endif
