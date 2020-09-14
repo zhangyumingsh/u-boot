@@ -47,7 +47,7 @@
 
 		blue-led {
 			gpios = <&gpio3 RK_PA5 GPIO_ACTIVE_LOW>;
-			label = "blue_blue";
+			label = "blue_led";
 			default-state = "on";
 		};
 	};
