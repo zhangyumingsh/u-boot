@@ -72,7 +72,9 @@
 #define BOOTENV_SHARED_NVME  BOOTENV_SHARED_BLKDEV(nvme)
 #define BOOTENV_DEV_NVME(devtypeu, devtypel, instance) \
 	"bootcmd_nvme=" \
+		"echo Here trying to boot from nvme;" \
 		"dcache off;" \
+		"echo dcache off;" \
 		"pci e;" \
 		"nvme scan;" \
 		"setenv devnum 0;" \
