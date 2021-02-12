@@ -140,16 +140,16 @@ void board_debug_uart_init(void)
 	rk_clrsetreg(&grf->gpio4c_iomux,
 		     GRF_GPIO4C4_SEL_MASK,
 		     GRF_UART2DBGC_SOUT << GRF_GPIO4C4_SEL_SHIFT);
-#if defined(CONFIG_ROCKCHIP_RK3399PRO)
-	/* Set channel A as UART2 input */
-	rk_clrsetreg(&grf->soc_con7,
-		     GRF_UART_DBG_SEL_MASK,
-		     GRF_UART_DBG_SEL_A << GRF_UART_DBG_SEL_SHIFT);
-#else
+//#if defined(CONFIG_ROCKCHIP_RK3399PRO)
+//	/* Set channel A as UART2 input */
+//	rk_clrsetreg(&grf->soc_con7,
+//		     GRF_UART_DBG_SEL_MASK,
+//		     GRF_UART_DBG_SEL_A << GRF_UART_DBG_SEL_SHIFT);
+//#else
 	/* Set channel C as UART2 input */
 	rk_clrsetreg(&grf->soc_con7,
 		     GRF_UART_DBG_SEL_MASK,
 		     GRF_UART_DBG_SEL_C << GRF_UART_DBG_SEL_SHIFT);
-#endif
+//#endif
 #endif
 }
