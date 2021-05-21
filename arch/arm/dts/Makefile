@@ -62,6 +62,7 @@ dtb-$(CONFIG_ARCH_ROCKCHIP) += \
 	rk3399-rock960-model-c.dtb \
 	rk3399pro-ficus2-linux.dtb \
 	rk3399pro-rockpi-n10-linux.dtb \
+	rk3399-fuhai.dtb \
 	rv1108-evb.dtb
 dtb-$(CONFIG_ARCH_MESON) += \
 	meson-gxbb-odroidc2.dtb
