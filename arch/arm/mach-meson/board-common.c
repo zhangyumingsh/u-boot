@@ -211,6 +211,7 @@ static bool fastboot_board_hwpart_process(const char *cmd, void *buffer,
 	struct blk_desc *desc;
 	void *blk_ptr = NULL;
 	int offset, length;
+	bool hw_part;
 	struct mmc *mmc;
 	lbaint_t blkcnt;
 	lbaint_t blk;
@@ -219,22 +220,6 @@ static bool fastboot_board_hwpart_process(const char *cmd, void *buffer,
 	lbaint_t blks = 0;
 	int ret, i;
 
-	/* Check if we handle these partitions */
-	if (strcmp(cmd, "bootloader") == 0) {
-		offset = FASBOOT_HWPART_BOOTLOADER_OFFSET;
-		length = FASBOOT_HWPART_BOOTLOADER_LENGTH;
-	} else if (strcmp(cmd, "bootenv") == 0) {
-		offset = FASBOOT_HWPART_BOOTENV_OFFSET;
-		length = FASBOOT_HWPART_BOOTENV_LENGTH;
-	} else
-		return false;
-
-	if (buffer && is_sparse_image(buffer)) {
-		pr_err("sparse buffer not supported");
-		fastboot_fail("sparse buffer not supported", response);
-		return true;
-	}
-
 	mmc = find_mmc_device(FASBOOT_HWPART_MMC_ENV_DEV);
 	if (!mmc) {
 		pr_err("invalid mmc device\n");
@@ -242,19 +227,48 @@ static bool fastboot_board_hwpart_process(const char *cmd, void *buffer,
 		return true;
 	}
 
-	ret = mmc_switch_part(mmc, FASBOOT_HWPART_MMC_ENV_PART);
+	/* Check if we handle these partitions */
+	if (strcmp(cmd, "bootloader") == 0) {
+		offset = FASBOOT_HWPART_BOOTLOADER_OFFSET;
+		length = FASBOOT_HWPART_BOOTLOADER_LENGTH;
+		hw_part = true;
+	} else if (strcmp(cmd, "bootenv") == 0) {
+		offset = FASBOOT_HWPART_BOOTENV_OFFSET;
+		length = FASBOOT_HWPART_BOOTENV_LENGTH;
+		hw_part = true;
+	} else if (0 == strict_strtoul(cmd, 16, (unsigned long *)&offset)) {
+		hw_part = false;
+		length = mmc->capacity - offset;
+	} else {
+		fastboot_fail("Unknown partition or offset", response);
+		return false;
+	}
+
+	/*if (buffer && is_sparse_image(buffer)) {
+		pr_err("sparse buffer not supported");
+		fastboot_fail("sparse buffer not supported", response);
+		return true;
+	}
+	*/
+
+	if (hw_part)
+		ret = mmc_switch_part(mmc, FASBOOT_HWPART_MMC_ENV_PART);
+	else
+		ret = mmc_switch_part(mmc, 0);
+
 	if (ret) {
 		pr_err("invalid mmc hwpart\n");
 		fastboot_fail("invalid mmc hwpart", response);
 		return true;
 	}
 
+
 	desc = mmc_get_blk_desc(mmc);
 
 	if (offset < 0)
 		offset += mmc->capacity;
 
-	printf("using custom hwpart %s at offset 0x%x and length %d bytes\n",
+	printf("using custom offset %s at offset 0x%x and length %d bytes\n",
 	       cmd, offset, length);
 
 	/* Use full length in erase mode */
@@ -340,4 +354,5 @@ bool fastboot_board_erase(const char *cmd, char *response)
 {
 	return fastboot_board_hwpart_process(cmd, NULL, 0, response);
 }
+
 #endif
