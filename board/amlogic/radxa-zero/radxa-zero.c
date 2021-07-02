@@ -18,7 +18,7 @@
 
 int misc_init_r(void)
 {
-	env_set("serial#", "AMLG12ARADXA0");
+	env_set("serial#", "AMLG12A-RADXA-ZERO");
 
 	return 0;
 }
