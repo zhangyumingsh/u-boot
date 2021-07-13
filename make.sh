@@ -619,7 +619,9 @@ pack_spl_loader_image()
 	local temp_ini=${RKBIN}/.temp/${RKCHIP_LOADER}MINIALL.ini
 
 	if [ "$FILE" != "" ]; then
-		ini=$FILE;
+		if grep -q 'CODE471_OPTION' $FILE ; then
+			ini=$FILE;
+		fi
 	fi
 
 	if [ ! -f ${ini} ]; then
@@ -664,7 +666,9 @@ pack_loader_image()
 	local mode=$1 files ini=${RKBIN}/RKBOOT/${RKCHIP_LOADER}MINIALL.ini
 
 	if [ "$FILE" != "" ]; then
-		ini=$FILE;
+		if grep -q 'CODE471_OPTION' $FILE ; then
+			ini=$FILE;
+		fi
 	fi
 
 	if [ ! -f $ini ]; then
@@ -766,7 +770,9 @@ pack_trust_image()
 	if grep -Eq ''^CONFIG_ARM64=y'|'^CONFIG_ARM64_BOOT_AARCH32=y'' ${OUTDIR}/.config ; then
 		ini=${RKBIN}/RKTRUST/${RKCHIP_TRUST}TRUST.ini
 		if [ "$FILE" != "" ]; then
-			ini=$FILE;
+			if grep -Eq ''BL31_OPTION'|'TOS'' $FILE ; then
+				ini=$FILE;
+			fi
 		fi
 
 		if [ "${mode}" = 'all' ]; then
@@ -782,7 +788,9 @@ pack_trust_image()
 	else
 		ini=${RKBIN}/RKTRUST/${RKCHIP_TRUST}TOS.ini
 		if [ "$FILE" != "" ]; then
-			ini=$FILE;
+			if grep -Eq ''BL31_OPTION'|'TOS'' $FILE ; then
+				ini=$FILE;
+			fi
 		fi
 		if [ "${mode}" = 'all' ]; then
 			files=`ls ${RKBIN}/RKTRUST/${RKCHIP_TRUST}TOS*.ini`
