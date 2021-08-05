@@ -34,6 +34,21 @@
 			press-threshold-microvolt = <1198828>;
 		};
 	};
+
+	gpio-keys {
+		compatible = "gpio-keys";
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		button@0 {
+			gpio-key,wakeup = <1>;
+			gpios = <&gpio3 25 GPIO_ACTIVE_LOW>;	
+			label = "GPIO Key_F15";
+			linux,code = <KEY_F15>;
+			pinctrl-names = "default";
+			pinctrl-0 = <&pwrbtn>;
+		};
+	};
 };
 
 &uart2 {
@@ -44,4 +59,12 @@
 	bus-width = <8>;
 	mmc-hs200-1_8v;
 	status = "okay";
+};
+
+&pinctrl {
+	keys {
+		pwrbtn: pwrbtn {
+			rockchip,pins = <3 RK_PD1 RK_FUNC_GPIO &pcfg_pull_up>;
+		};
+	};
 };
