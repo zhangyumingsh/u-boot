@@ -527,12 +527,13 @@ TEEC_Result OpteeRpcCmdFs(t_teesmc32_arg *TeeSmc32Arg)
 #ifdef CONFIG_OPTEE_V1
 	TeecResult = tee_supp_rk_fs_process((void *)(size_t)TeeSmc32Param[0].u.memref.buf_ptr,
 							TeeSmc32Param[0].u.memref.size);
+	TeeSmc32Arg->ret = TEEC_SUCCESS;
 #endif
 #ifdef CONFIG_OPTEE_V2
 	TeecResult = tee_supp_rk_fs_process((size_t)TeeSmc32Arg->num_params,
 							(struct tee_ioctl_param *)TeeSmc32Param);
+	TeeSmc32Arg->ret = TeecResult;
 #endif
-
 	return TeecResult;
 }
 
@@ -669,7 +670,6 @@ TEEC_Result OpteeRpcCallback(ARM_SMC_ARGS *ArmSmcArgs)
 		}
 		case OPTEE_MSG_RPC_CMD_FS_V2: {
 			TeecResult = OpteeRpcCmdFs(TeeSmc32Arg);
-			TeeSmc32Arg->ret = TEEC_SUCCESS;
 			break;
 		}
 		case OPTEE_MSG_RPC_CMD_LOAD_TA_V2: {
