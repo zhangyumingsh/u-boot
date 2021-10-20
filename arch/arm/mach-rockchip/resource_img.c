@@ -115,6 +115,12 @@ struct resource_file {
 	uint32_t	rsce_base;	/* Base addr of resource */
 };
 
+__weak int rk_board_early_fdt_fixup(void *blob)
+{
+	return 0;
+}
+
+
 static LIST_HEAD(entrys_head);
 
 static int resource_image_check_header(const struct resource_img_hdr *hdr)
@@ -963,6 +969,8 @@ int rockchip_read_dtb_file(void *fdt_addr)
 #if defined(CONFIG_CMD_DTIMG) && defined(CONFIG_OF_LIBFDT_OVERLAY)
 	android_fdt_overlay_apply((void *)fdt_addr);
 #endif
+
+	rk_board_early_fdt_fixup(fdt_addr);
 
 	return file->f_size;
 }
