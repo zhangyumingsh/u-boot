@@ -4,6 +4,7 @@
  * SPDX-License-Identifier:     GPL-2.0+
  */
 #include <common.h>
+#include <fdt_support.h>
 #include <asm/io.h>
 #include <asm/arch/cpu.h>
 #include <asm/arch/grf_rk3308.h>
@@ -434,6 +435,7 @@ static int fdt_fixup_thermal_zones(const void *blob)
 int rk_board_fdt_fixup(const void *blob)
 {
 	if (soc_is_rk3308bs()) {
+		fdt_increase_size((void *)blob, SZ_8K);
 		fdt_fixup_cpu_idle(blob);
 		fdt_fixup_cpu_opp_table(blob);
 		fdt_fixup_dmc_opp_table(blob);
