@@ -1692,6 +1692,10 @@
 			drive-strength = <20>;
 		};
 
+		pcfg_output_low: pcfg-output-low {
+			output-low;
+		};
+
 		clock {
 			clk_32k: clk-32k {
 				rockchip,pins = <0 RK_PA0 RK_FUNC_2 &pcfg_pull_none>;
