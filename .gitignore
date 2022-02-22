@@ -88,3 +88,5 @@ GTAGS
 \#*#
 trust.ini
 spi.ini
+
+tools/bmp2gray16
