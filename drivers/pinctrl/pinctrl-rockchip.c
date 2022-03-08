@@ -64,6 +64,7 @@ enum rockchip_pin_drv_type {
 	DRV_TYPE_IO_1V8_ONLY,
 	DRV_TYPE_IO_1V8_3V0_AUTO,
 	DRV_TYPE_IO_3V3_ONLY,
+	DRV_TYPE_IO_SMIC,
 	DRV_TYPE_MAX
 };
 
@@ -325,6 +326,9 @@ struct rockchip_pin_ctrl {
 	int	(*schmitt_calc_reg)(struct rockchip_pin_bank *bank,
 				    int pin_num, struct regmap **regmap,
 				    int *reg, u8 *bit);
+	int	(*slew_rate_calc_reg)(struct rockchip_pin_bank *bank,
+				      int pin_num, struct regmap **regmap,
+				      int *reg, u8 *bit);
 };
 
 /**
@@ -2146,12 +2150,34 @@ static void rk3399_calc_drv_reg_and_bit(struct rockchip_pin_bank *bank,
 		*bit = (pin_num % 8) * 2;
 }
 
+#define RK3308_SLEW_RATE_GRF_OFFSET		0x150
+#define RK3308_SLEW_RATE_BANK_STRIDE		16
+#define RK3308_SLEW_RATE_PINS_PER_GRF_REG	8
+
+static void rk3308_calc_slew_rate_reg_and_bit(struct rockchip_pin_bank *bank,
+					     int pin_num,
+					     struct regmap **regmap,
+					     int *reg, u8 *bit)
+{
+	struct rockchip_pinctrl_priv *priv = bank->priv;
+	int pins_per_reg;
+
+	*regmap = priv->regmap_base;
+	*reg = RK3308_SLEW_RATE_GRF_OFFSET;
+	*reg += (bank->bank_num) * RK3308_SLEW_RATE_BANK_STRIDE;
+	pins_per_reg = RK3308_SLEW_RATE_PINS_PER_GRF_REG;
+
+	*reg += ((pin_num / pins_per_reg) * 4);
+	*bit = pin_num % pins_per_reg;
+}
+
 static int rockchip_perpin_drv_list[DRV_TYPE_MAX][8] = {
 	{ 2, 4, 8, 12, -1, -1, -1, -1 },
 	{ 3, 6, 9, 12, -1, -1, -1, -1 },
 	{ 5, 10, 15, 20, -1, -1, -1, -1 },
 	{ 4, 6, 8, 10, 12, 14, 16, 18 },
-	{ 4, 7, 10, 13, 16, 19, 22, 26 }
+	{ 4, 7, 10, 13, 16, 19, 22, 26 },
+	{ 0, 2, 4, 6, 6, 8, 10, 12 }
 };
 
 static int rockchip_set_drive_perpin(struct rockchip_pin_bank *bank,
@@ -2171,6 +2197,9 @@ static int rockchip_set_drive_perpin(struct rockchip_pin_bank *bank,
 
 	ctrl->drv_calc_reg(bank, pin_num, &regmap, &reg, &bit);
 
+	if (soc_is_rk3308bs())
+		drv_type = DRV_TYPE_IO_SMIC;
+
 	ret = -EINVAL;
 	for (i = 0; i < ARRAY_SIZE(rockchip_perpin_drv_list[drv_type]); i++) {
 		if (rockchip_perpin_drv_list[drv_type][i] == strength) {
@@ -2188,6 +2217,25 @@ static int rockchip_set_drive_perpin(struct rockchip_pin_bank *bank,
 	}
 
 	switch (drv_type) {
+	case DRV_TYPE_IO_SMIC:
+		if (ctrl->type == RK3308) { /* RK3308B-S */
+			int regval = ret;
+
+			data = 0x3 << (bit + 16);
+			data |= ((regval & 0x3) << bit);
+
+			ret = regmap_write(regmap, reg, data);
+			if (ret < 0)
+				return ret;
+
+			rk3308_calc_slew_rate_reg_and_bit(bank, pin_num, &regmap, &reg, &bit);
+			data = BIT(bit + 16) | (((regval > 3) ? 1 : 0) << bit);
+
+			return regmap_write(regmap, reg, data);
+		}
+
+		dev_err(info->dev, "unsupported type DRV_TYPE_IO_SMIC\n");
+		return -EINVAL;
 	case DRV_TYPE_IO_1V8_3V0_AUTO:
 	case DRV_TYPE_IO_3V3_ONLY:
 		rmask_bits = RK3399_DRV_3BITS_PER_PIN;
@@ -2382,6 +2430,59 @@ static int rockchip_set_schmitt(struct rockchip_pin_bank *bank,
 	return regmap_write(regmap, reg, data);
 }
 
+#define PX30_SLEW_RATE_PMU_OFFSET		0x30
+#define PX30_SLEW_RATE_GRF_OFFSET		0x90
+#define PX30_SLEW_RATE_PINS_PER_PMU_REG		16
+#define PX30_SLEW_RATE_BANK_STRIDE		16
+#define PX30_SLEW_RATE_PINS_PER_GRF_REG		8
+
+static int px30_calc_slew_rate_reg_and_bit(struct rockchip_pin_bank *bank,
+					   int pin_num,
+					   struct regmap **regmap,
+					   int *reg, u8 *bit)
+{
+	struct rockchip_pinctrl_priv *priv = bank->priv;
+	int pins_per_reg;
+
+	if (bank->bank_num == 0) {
+		*regmap = priv->regmap_pmu;
+		*reg = PX30_SLEW_RATE_PMU_OFFSET;
+		pins_per_reg = PX30_SCHMITT_PINS_PER_PMU_REG;
+	} else {
+		*regmap = priv->regmap_base;
+		*reg = PX30_SCHMITT_GRF_OFFSET;
+		pins_per_reg = PX30_SCHMITT_PINS_PER_GRF_REG;
+		*reg += (bank->bank_num  - 1) * PX30_SCHMITT_BANK_STRIDE;
+	}
+	*reg += ((pin_num / pins_per_reg) * 4);
+	*bit = pin_num % pins_per_reg;
+
+	return 0;
+}
+
+static int rockchip_set_slew_rate(struct rockchip_pin_bank *bank,
+				  int pin_num, int speed)
+{
+	struct rockchip_pinctrl_priv *priv = bank->priv;
+	struct rockchip_pin_ctrl *ctrl = priv->ctrl;
+	struct regmap *regmap;
+	int reg, ret;
+	u8 bit;
+	u32 data;
+
+	debug("setting slew rate of GPIO%d-%d to %d\n", bank->bank_num,
+	      pin_num, speed);
+
+	ret = ctrl->slew_rate_calc_reg(bank, pin_num, &regmap, &reg, &bit);
+	if (ret)
+		return ret;
+
+	/* enable the write to the equivalent lower bits */
+	data = BIT(bit + 16) | (speed << bit);
+
+	return regmap_write(regmap, reg, data);
+}
+
 /*
  * Pinconf_ops handling
  */
@@ -2457,6 +2558,16 @@ static int rockchip_pinconf_set(struct rockchip_pin_bank *bank,
 			return rc;
 		break;
 
+	case PIN_CONFIG_SLEW_RATE:
+		if (!ctrl->slew_rate_calc_reg)
+			return -ENOTSUPP;
+
+		rc = rockchip_set_slew_rate(bank,
+					    pin - bank->pin_base, arg);
+		if (rc < 0)
+			return rc;
+		break;
+
 	default:
 		break;
 	}
@@ -2474,6 +2585,7 @@ static const struct pinconf_param rockchip_conf_params[] = {
 	{ "input-disable", PIN_CONFIG_INPUT_ENABLE, 0 },
 	{ "input-schmitt-disable", PIN_CONFIG_INPUT_SCHMITT_ENABLE, 0 },
 	{ "input-schmitt-enable", PIN_CONFIG_INPUT_SCHMITT_ENABLE, 1 },
+	{ "slew-rate", PIN_CONFIG_SLEW_RATE, 0 },
 };
 
 static int rockchip_pinconf_prop_name_to_param(const char *property,
@@ -2509,7 +2621,7 @@ static int rockchip_pinctrl_set_state(struct udevice *dev,
 	int prop_len, param;
 	const u32 *data;
 	ofnode node;
-#ifdef CONFIG_OF_LIVE
+#if defined(CONFIG_OF_LIVE) && !defined(CONFIG_SPL_BUILD)
 	const struct device_node *np;
 	struct property *pp;
 #else
@@ -2549,7 +2661,7 @@ static int rockchip_pinctrl_set_state(struct udevice *dev,
 		node = ofnode_get_by_phandle(conf);
 		if (!ofnode_valid(node))
 			return -ENODEV;
-#ifdef CONFIG_OF_LIVE
+#if defined(CONFIG_OF_LIVE) && !defined(CONFIG_SPL_BUILD)
 		np = ofnode_to_np(node);
 		for (pp = np->properties; pp; pp = pp->next) {
 			prop_name = pp->name;
@@ -2598,7 +2710,7 @@ static int rk3308b_ctrl_data_re_init(struct rockchip_pin_ctrl *ctrl)
 	 * Special for rk3308b, where we need to replace the recalced
 	 * and routed arrays.
 	 */
-	if (soc_is_rk3308b()) {
+	if (soc_is_rk3308b() || soc_is_rk3308bs()) {
 		ctrl->iomux_recalced = rk3308b_mux_recalced_data;
 		ctrl->niomux_recalced = ARRAY_SIZE(rk3308b_mux_recalced_data);
 		ctrl->iomux_routes = rk3308b_mux_route_data;
@@ -2747,7 +2859,7 @@ static int rk3308b_soc_data_init(struct rockchip_pinctrl_priv *priv)
 	/*
 	 * Enable the special ctrl  of selected sources.
 	 */
-	if (soc_is_rk3308b()) {
+	if (soc_is_rk3308b() || soc_is_rk3308bs()) {
 		ret = regmap_write(priv->regmap_base, RK3308B_GRF_SOC_CON13,
 				   RK3308B_GRF_I2C3_IOFUNC_SRC_CTRL |
 				   RK3308B_GRF_GPIO2A3_SEL_SRC_CTRL |
@@ -2855,6 +2967,7 @@ static struct rockchip_pin_ctrl px30_pin_ctrl = {
 		.pull_calc_reg		= px30_calc_pull_reg_and_bit,
 		.drv_calc_reg		= px30_calc_drv_reg_and_bit,
 		.schmitt_calc_reg	= px30_calc_schmitt_reg_and_bit,
+		.slew_rate_calc_reg	= px30_calc_slew_rate_reg_and_bit,
 };
 
 static struct rockchip_pin_bank rv1108_pin_banks[] = {

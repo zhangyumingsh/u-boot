@@ -5,7 +5,7 @@
 # SPDX-License-Identifier:	GPL-2.0+
 #
 
-obj-$(CONFIG_MISC) += misc-uclass.o
+obj-$(CONFIG_$(SPL_TPL_)MISC) += misc-uclass.o misc_otp.o
 obj-$(CONFIG_ALI152X) += ali512x.o
 obj-$(CONFIG_ALTERA_SYSID) += altera_sysid.o
 obj-$(CONFIG_ATSHA204A) += atsha204a-i2c.o
@@ -53,3 +53,7 @@ obj-$(CONFIG_WINBOND_W83627) += winbond_w83627.o
 obj-$(CONFIG_QFW) += qfw.o
 obj-$(CONFIG_ROCKCHIP_EFUSE) += rockchip-efuse.o
 obj-$(CONFIG_ROCKCHIP_OTP) += rockchip-otp.o
+
+ifdef CONFIG_ROCKCHIP_RK3308
+obj-$(CONFIG_$(SPL_TPL_)ROCKCHIP_SECURE_OTP) += rk3308-secure-otp.o
+endif

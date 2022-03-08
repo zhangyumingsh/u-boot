@@ -8,17 +8,20 @@
 #include <adc.h>
 #include <asm/io.h>
 #include <asm/arch/boot_mode.h>
-#include <asm/arch/rk_atags.h>
+#include <asm/arch/hotkey.h>
+#include <asm/arch/param.h>
 #include <cli.h>
 #include <dm.h>
 #include <fdtdec.h>
 #include <boot_rkimg.h>
+#include <stdlib.h>
 #include <linux/usb/phy-rockchip-inno-usb2.h>
 #include <key.h>
 #ifdef CONFIG_DM_RAMDISK
 #include <ramdisk.h>
 #endif
 #include <mmc.h>
+#include <console.h>
 
 DECLARE_GLOBAL_DATA_PTR;
 
@@ -98,65 +101,30 @@ void boot_devtype_init(void)
 	if (done)
 		return;
 
-	/*
-	 * New way: get bootdev from preloader atags info.
-	 */
-#ifdef CONFIG_ROCKCHIP_PRELOADER_ATAGS
-	struct tag *t;
-
-	t = atags_get_tag(ATAG_BOOTDEV);
-	if (t) {
+	ret = param_parse_bootdev(&devtype, &devnum);
+	if (!ret) {
 		atags_en = 1;
-		switch (t->u.bootdev.devtype) {
-		case BOOT_TYPE_EMMC:
-			devtype = "mmc";
-			devnum = "1";
-			break;
-		case BOOT_TYPE_SD0:
-		case BOOT_TYPE_SD1:
-			devtype = "mmc";
-			devnum = "0";
-			break;
-		case BOOT_TYPE_NAND:
-			devtype = "rknand";
-			devnum = "0";
-			break;
-		case BOOT_TYPE_SPI_NAND:
-			devtype = "spinand";
-			devnum = "0";
-			break;
-		case BOOT_TYPE_SPI_NOR:
-			devtype = "spinor";
-			devnum = "1";
-			break;
-		case BOOT_TYPE_RAM:
-			devtype = "ramdisk";
-			devnum = "0";
-			break;
-		default:
-			printf("Unknown bootdev type: 0x%x\n",
-			       t->u.bootdev.devtype);
-			goto fallback;
-		}
-	}
-
-	debug("%s: Get bootdev from atags: %s %s\n", __func__, devtype, devnum);
-
-	if (devtype && devnum) {
 		env_set("devtype", devtype);
 		env_set("devnum", devnum);
+
 #ifdef CONFIG_DM_MMC
 		if (!strcmp("mmc", devtype))
 			mmc_initialize(gd->bd);
 #endif
-		goto finish;
+		/*
+		 * For example, the pre-loader do not have mtd device,
+		 * and pass devtype is nand. Then U-Boot can not get
+		 * dev_desc when use mtd driver to read firmware. So
+		 * test the block dev is exist or not here.
+		 *
+		 * And the devtype & devnum maybe wrong sometimes, it
+		 * is better to test first.
+		 */
+		if (blk_get_devnum_by_typename(devtype, atoi(devnum)))
+			goto finish;
 	}
-#endif
 
-	/*
-	 * Legacy way: get bootdev by going through all boot media.
-	 */
-fallback:
+	/* If not find valid bootdev by atags, scan all possible */
 #ifdef CONFIG_DM_MMC
 	mmc_initialize(gd->bd);
 #endif
@@ -168,6 +136,7 @@ fallback:
 		env_set("devtype", devtype);
 		env_set("devnum", devnum);
 	}
+
 finish:
 	done = 1;
 	printf("Bootdev%s: %s %s\n", atags_en ? "(atags)" : "",
@@ -176,35 +145,22 @@ finish:
 
 void rockchip_dnl_mode_check(void)
 {
-	if (rockchip_dnl_key_pressed()) {
+	/* recovery key or "ctrl+d" */
+	if (rockchip_dnl_key_pressed() ||
+	    is_hotkey(HK_ROCKUSB_DNL)) {
 		printf("download key pressed... ");
-		if (rockchip_u2phy_vbus_detect()) {
+		if (rockchip_u2phy_vbus_detect() > 0) {
 			printf("entering download mode...\n");
 			/* If failed, we fall back to bootrom download mode */
 			run_command_list("rockusb 0 ${devtype} ${devnum}", -1, 0);
 			set_back_to_bootrom_dnl_flag();
 			do_reset(NULL, 0, 0, NULL);
 		} else {
-			printf("\n");
-#ifdef CONFIG_RKIMG_BOOTLOADER
-			/* If there is no recovery partition, just boot on */
-			struct blk_desc *dev_desc;
-			disk_partition_t part_info;
-
-			dev_desc = rockchip_get_bootdev();
-			if (!dev_desc) {
-				printf("%s: dev_desc is NULL!\n", __func__);
-				return;
-			}
-			if (part_get_info_by_name(dev_desc, PART_RECOVERY,
-						  &part_info)) {
-				debug("%s: no recovery partition\n", __func__);
-				return;
-			}
-#endif
-			printf("recovery key pressed, entering recovery mode!\n");
-			env_set("reboot_mode", "recovery");
+			printf("entering recovery mode!\n");
+			env_set("reboot_mode", "recovery-key");
 		}
+	} else if (is_hotkey(HK_FASTBOOT)) {
+		env_set("reboot_mode", "fastboot");
 	}
 }
 
@@ -242,10 +198,6 @@ int setup_boot_mode(void)
 	case BOOT_MODE_CHARGING:
 		printf("enter charging!\n");
 		env_set("preboot", "setenv preboot; charge");
-		break;
-	case BOOT_MODE_RECOVERY:
-		printf("enter Recovery mode!\n");
-		env_set("reboot_mode", "recovery");
 		break;
 	}
 

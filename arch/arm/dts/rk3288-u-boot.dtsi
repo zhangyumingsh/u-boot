@@ -33,6 +33,10 @@
 	u-boot,dm-pre-reloc;
 };
 
+&crypto {
+	u-boot,dm-pre-reloc;
+};
+
 &cru {
 	u-boot,dm-pre-reloc;
 };
@@ -62,6 +66,10 @@
 };
 
 &gpio8 {
+	u-boot,dm-pre-reloc;
+};
+
+&gpio6 {
 	u-boot,dm-pre-reloc;
 };
 

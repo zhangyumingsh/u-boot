@@ -22,6 +22,11 @@
 struct rk3128_clk_priv {
 	struct rk3128_cru *cru;
 	ulong gpll_hz;
+	ulong armclk_hz;
+	ulong armclk_enter_hz;
+	ulong armclk_init_hz;
+	bool sync_kernel;
+	bool set_armclk_rate;
 };
 
 struct rk3128_cru {
@@ -160,6 +165,8 @@ enum {
 	SARADC_DIV_CON_SHIFT	= 8,
 	SARADC_DIV_CON_MASK	= GENMASK(15, 8),
 	SARADC_DIV_CON_WIDTH	= 8,
+	CLK_CRYPTO_DIV_CON_SHIFT= 0,
+	CLK_CRYPTO_DIV_CON_MASK	= GENMASK(1, 0),
 
 	/* CRU_CLKSEL27_CON*/
 	DCLK_VOP_SEL_SHIFT	= 0,

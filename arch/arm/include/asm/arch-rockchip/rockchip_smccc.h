@@ -22,7 +22,9 @@
 #define SIP_SHARE_MEM			0x82000009
 #define SIP_SIP_VERSION			0x8200000a
 #define SIP_REMOTECTL_CFG		0x8200000b
-#define PSCI_SIP_VPU_RESET		0x8200000c
+#define SIP_VPU_RESET			0x8200000c
+#define SIP_SOC_BUS_DIV			0x8200000d
+#define SIP_LAST_LOG			0x8200000e
 
 #define ROCKCHIP_SIP_CONFIG_DRAM_INIT		0x00
 #define ROCKCHIP_SIP_CONFIG_DRAM_SET_RATE	0x01
@@ -135,6 +137,7 @@ struct arm_smccc_res sip_smc_get_sip_version(void);
  */
 int psci_cpu_on(unsigned long cpuid, unsigned long entry_point);
 
+#ifdef CONFIG_ARM_CPU_SUSPEND
 /*
  * psci_system_suspend() - Standard ARM PSCI system suspend call.
  *
@@ -143,5 +146,6 @@ int psci_cpu_on(unsigned long cpuid, unsigned long entry_point);
  * @return 0 on success, otherwise failed.
  */
 int psci_system_suspend(unsigned long unused);
+#endif
 
 #endif

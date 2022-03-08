@@ -33,6 +33,8 @@
 
 #define CONFIG_ROCKUSB_G_DNL_PID	0x320A
 
+#define CONFIG_SUPPORT_EMMC_RPMB
+
 /* MMC/SD IP block */
 #define CONFIG_BOUNCE_BUFFER
 
@@ -47,10 +49,6 @@
 #define SDRAM_BANK_SIZE			(2UL << 30)
 #define SDRAM_MAX_SIZE			0xfe000000
 
-#define CONFIG_SPI_FLASH
-#define CONFIG_SPI
-#define CONFIG_SF_DEFAULT_SPEED 20000000
-
 #ifndef CONFIG_SPL_BUILD
 /* usb otg */
 #define CONFIG_ROCKCHIP_USB2_PHY
@@ -63,9 +61,9 @@
 #define ENV_MEM_LAYOUT_SETTINGS \
 	"scriptaddr=0x00000000\0" \
 	"pxefile_addr_r=0x00100000\0" \
-	"fdt_addr_r=0x01f00000\0" \
+	"fdt_addr_r=0x08300000\0" \
 	"kernel_addr_r=0x02008000\0" \
-	"ramdisk_addr_r=0x04000000\0"
+	"ramdisk_addr_r=0x0a200000\0"
 
 #include <config_distro_bootcmd.h>
 

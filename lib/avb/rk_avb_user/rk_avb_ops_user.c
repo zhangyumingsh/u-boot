@@ -24,8 +24,47 @@
 #include <android_avb/avb_atx_validate.h>
 #include <android_avb/rk_avb_ops_user.h>
 #include <boot_rkimg.h>
+#include <asm/arch/rk_atags.h>
 
 /* rk used */
+int rk_avb_get_pub_key(struct rk_pub_key *pub_key)
+{
+	struct tag *t = NULL;
+
+	t = atags_get_tag(ATAG_PUB_KEY);
+	if (!t)
+		return -1;
+
+	memcpy(pub_key, t->u.pub_key.data, sizeof(struct rk_pub_key));
+
+	return 0;
+}
+int rk_avb_get_perm_attr_cer(uint8_t *cer, uint32_t size)
+{
+#ifdef CONFIG_OPTEE_CLIENT
+	if (trusty_read_permanent_attributes_cer((uint8_t *)cer, size)) {
+		printf("AVB: perm attr cer is not exist.\n");
+		return -EIO;
+	}
+
+	return 0;
+#else
+	return -1;
+#endif
+}
+
+int rk_avb_set_perm_attr_cer(uint8_t *cer, uint32_t size)
+{
+#ifdef CONFIG_OPTEE_CLIENT
+	if (trusty_write_permanent_attributes_cer((uint8_t *)cer, size))
+		return -EIO;
+
+	return 0;
+#else
+	return -1;
+#endif
+}
+
 int rk_avb_read_slot_count(char *slot_count)
 {
 	*slot_count = SLOT_NUM;
@@ -73,6 +112,7 @@ AvbABFlowResult rk_avb_ab_slot_select(AvbABOps* ab_ops,char* select_slot)
 	AvbIOResult io_ret = AVB_IO_RESULT_OK;
 	AvbABData ab_data;
 	size_t slot_index_to_boot;
+	static int last_slot_index = -1;
 
 	io_ret = ab_ops->read_ab_metadata(ab_ops, &ab_data);
 	if (io_ret != AVB_IO_RESULT_OK) {
@@ -101,6 +141,14 @@ AvbABFlowResult rk_avb_ab_slot_select(AvbABOps* ab_ops,char* select_slot)
 	} else if(slot_index_to_boot == 1) {
 		strcpy(select_slot, "_b");
 	}
+
+	if (last_slot_index != slot_index_to_boot) {
+		last_slot_index = slot_index_to_boot;
+		printf("A/B-slot: %s, successful: %d, tries-remain: %d\n",
+		       select_slot,
+		       ab_data.slots[slot_index_to_boot].successful_boot,
+		       ab_data.slots[slot_index_to_boot].tries_remaining);
+	}
 out:
 	return ret;
 }
@@ -117,12 +165,40 @@ int rk_avb_get_current_slot(char *select_slot)
 	}
 
 	if (rk_avb_ab_slot_select(ops->ab_ops, select_slot) != 0) {
-		printf("get_current_slot error!\n");
-		ret = -1;
+#ifndef CONFIG_ANDROID_AVB
+		printf("###There is no bootable slot, bring up last_boot!###\n");
+		if (rk_get_lastboot() == 1)
+			memcpy(select_slot, "_b", 2);
+		else if(rk_get_lastboot() == 0)
+			memcpy(select_slot, "_a", 2);
+		else
+#endif
+			return -1;
+		ret = 0;
 	}
 
 	avb_ops_user_free(ops);
 	return ret;
+}
+
+int rk_avb_append_part_slot(const char *part_name, char *new_name)
+{
+	char slot_suffix[3] = {0};
+
+	if (!strcmp(part_name, "misc")) {
+		strcat(new_name, part_name);
+		return 0;
+	}
+
+	if (rk_avb_get_current_slot(slot_suffix)) {
+		printf("%s: failed to get slot suffix !\n", __func__);
+		return -1;
+	}
+
+	strcpy(new_name, part_name);
+	strcat(new_name, slot_suffix);
+
+	return 0;
 }
 
 int rk_avb_read_permanent_attributes(uint8_t *attributes, uint32_t size)
@@ -696,4 +772,58 @@ int rk_generate_unlock_challenge(void *buffer, uint32_t *challenge_len)
 		return 0;
 	else
 		return -1;
+}
+
+int rk_get_lastboot(void)
+{
+
+	AvbIOResult io_ret = AVB_IO_RESULT_OK;
+	AvbABData ab_data;
+	int lastboot = -1;
+	AvbOps* ops;
+
+	ops = avb_ops_user_new();
+	if (ops == NULL) {
+		printf("avb_ops_user_new() failed!\n");
+		return -1;
+	}
+
+	io_ret = ops->ab_ops->read_ab_metadata(ops->ab_ops, &ab_data);
+	if (io_ret != AVB_IO_RESULT_OK) {
+		avb_error("I/O error while loading A/B metadata.\n");
+		goto out;
+	}
+
+	lastboot = ab_data.last_boot;
+out:
+	avb_ops_user_free(ops);
+
+	return lastboot;
+}
+
+int rk_avb_init_ab_metadata(void)
+{
+	AvbOps *ops;
+	AvbABData ab_data;
+
+	memset(&ab_data, 0, sizeof(AvbABData));
+	debug("sizeof(AvbABData) = %d\n", (int)(size_t)sizeof(AvbABData));
+
+	ops = avb_ops_user_new();
+	if (ops == NULL) {
+		printf("avb_ops_user_new() failed!\n");
+		return -1;
+	}
+
+	avb_ab_data_init(&ab_data);
+	if (ops->ab_ops->write_ab_metadata(ops->ab_ops, &ab_data) != 0) {
+		printf("do_avb_init_ab_metadata error!\n");
+		avb_ops_user_free(ops);
+		return -1;
+	}
+
+	printf("Initialize ab data to misc partition success.\n");
+	avb_ops_user_free(ops);
+
+	return 0;
 }

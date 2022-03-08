@@ -10,7 +10,7 @@
 #include "rockchip-common.h"
 
 #define CONFIG_SKIP_LOWLEVEL_INIT
-#define CONFIG_SYS_MALLOC_LEN		(128 << 20)
+#define CONFIG_SYS_MALLOC_LEN		(32 << 20)
 #define CONFIG_SYS_CBSIZE		2048
 #define CONFIG_SYS_BOOTM_LEN	(64 << 20)	/*  64M */
 
@@ -44,9 +44,9 @@
 #define ENV_MEM_LAYOUT_SETTINGS \
 	"scriptaddr=0x60000000\0" \
 	"pxefile_addr_r=0x60100000\0" \
-	"fdt_addr_r=0x61f00000\0" \
+	"fdt_addr_r=0x68300000\0" \
 	"kernel_addr_r=0x62008000\0" \
-	"ramdisk_addr_r=0x64000000\0"
+	"ramdisk_addr_r=0x6a200000\0"
 
 #include <config_distro_bootcmd.h>
 

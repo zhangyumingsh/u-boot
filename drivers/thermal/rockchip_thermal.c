@@ -12,6 +12,7 @@
 #include <errno.h>
 #include <syscon.h>
 #include <asm/arch/clock.h>
+#include <asm/arch/cpu.h>
 #include <asm/arch/hardware.h>
 #include <asm/io.h>
 #include <dm/lists.h>
@@ -129,6 +130,9 @@ struct chip_tsadc_table {
 	const struct tsadc_table *id;
 	unsigned int length;
 	u32 data_mask;
+	/* Tsadc is linear, using linear parameters */
+	int knum;
+	int bnum;
 	enum adc_sort_mode mode;
 };
 
@@ -166,7 +170,6 @@ struct rockchip_thermal_priv {
 	void *base;
 	void *grf;
 	enum tshut_mode tshut_mode;
-	enum tshut_polarity tshut_polarity;
 	const struct rockchip_tsadc_chip *data;
 };
 
@@ -419,6 +422,13 @@ static int tsadc_code_to_temp(struct chip_tsadc_table *table, u32 code,
 	unsigned int num;
 	unsigned long denom;
 
+	if (table->knum) {
+		*temp = (((int)code - table->bnum) * 10000 / table->knum) * 100;
+		if (*temp < MIN_TEMP || *temp > MAX_TEMP)
+			return -EAGAIN;
+		return 0;
+	}
+
 	switch (table->mode) {
 	case ADC_DECREMENT:
 		code &= table->data_mask;
@@ -479,6 +489,9 @@ static u32 tsadc_temp_to_code_v2(struct chip_tsadc_table table,
 {
 	int high, low, mid;
 	u32 error = table.data_mask;
+
+	if (table.knum)
+		return (((temp / 1000) * table.knum) / 1000 + table.bnum);
 
 	low = 0;
 	high = table.length - 1;
@@ -564,7 +577,7 @@ static void tsadc_init_v2(struct udevice *dev)
 	writel(TSADCV2_HIGHT_TSHUT_DEBOUNCE_COUNT,
 	       priv->base + TSADCV2_HIGHT_TSHUT_DEBOUNCE);
 
-	if (priv->tshut_polarity == TSHUT_HIGH_ACTIVE)
+	if (priv->data->tshut_polarity == TSHUT_HIGH_ACTIVE)
 		writel(0U | TSADCV2_AUTO_TSHUT_POLARITY_HIGH,
 		       priv->base + TSADCV2_AUTO_CON);
 	else
@@ -768,10 +781,34 @@ static const struct dm_thermal_ops rockchip_thermal_ops = {
 	.get_temp	= rockchip_thermal_get_temp,
 };
 
+static const struct rockchip_tsadc_chip rk3308bs_tsadc_data = {
+	.chn_id[SENSOR_CPU] = 0, /* cpu sensor is channel 0 */
+	.chn_num = 1, /* 1 channels for tsadc */
+
+	.tshut_mode = TSHUT_MODE_CRU, /* default TSHUT via CRU */
+	.tshut_temp = 95000,
+
+	.tsadc_init = tsadc_init_v2,
+	.tsadc_control = tsadc_control_v2,
+	.tsadc_get_temp = tsadc_get_temp_v2,
+	.irq_ack = tsadc_irq_ack_v3,
+	.set_alarm_temp = tsadc_alarm_temp_v2,
+	.set_tshut_temp = tsadc_tshut_temp_v2,
+	.set_tshut_mode = tsadc_tshut_mode_v2,
+
+	.table = {
+		.knum = 2699,
+		.bnum = 2796,
+		.data_mask = TSADCV2_DATA_MASK,
+		.mode = ADC_INCREMENT,
+	},
+};
+
 static int rockchip_thermal_probe(struct udevice *dev)
 {
 	struct rockchip_thermal_priv *priv = dev_get_priv(dev);
 	struct rockchip_tsadc_chip *tsadc;
+	struct clk clk;
 	int ret, i, shut_temp;
 
 	/* Process 'assigned-{clocks/clock-parents/clock-rates}' properties */
@@ -779,7 +816,23 @@ static int rockchip_thermal_probe(struct udevice *dev)
 	if (ret)
 		printf("%s clk_set_defaults failed %d\n", __func__, ret);
 
-	tsadc = (struct rockchip_tsadc_chip *)dev_get_driver_data(dev);
+	if (soc_is_rk3308bs()) {
+		ret = clk_get_by_name(dev, "tsadc", &clk);
+		if (ret) {
+			printf("%s get tsadc clk fail\n", __func__);
+			return -EINVAL;
+		}
+		ret = clk_set_rate(&clk, 4000000);
+		if (ret < 0) {
+			printf("%s: failed to set tsadc clk rate for %s\n",
+			       __func__, dev_read_name(dev));
+			return -EINVAL;
+		}
+
+		tsadc = (struct rockchip_tsadc_chip *)&rk3308bs_tsadc_data;
+	} else {
+		tsadc = (struct rockchip_tsadc_chip *)dev_get_driver_data(dev);
+	}
 	priv->data = tsadc;
 
 	priv->tshut_mode = dev_read_u32_default(dev,
@@ -787,12 +840,6 @@ static int rockchip_thermal_probe(struct udevice *dev)
 						-1);
 	if (priv->tshut_mode < 0)
 		priv->tshut_mode = priv->data->tshut_mode;
-
-	priv->tshut_polarity = dev_read_u32_default(dev,
-						    "rockchip,hw-tshut-polarity",
-						    -1);
-	if (priv->tshut_polarity < 0)
-		priv->tshut_polarity = tsadc->tshut_polarity;
 
 	if (priv->tshut_mode == TSHUT_MODE_GPIO)
 		pinctrl_select_state(dev, "otpout");
@@ -816,7 +863,10 @@ static int rockchip_thermal_probe(struct udevice *dev)
 	}
 
 	tsadc->tsadc_control(dev, true);
-	udelay(1000);
+	if (soc_is_rk3308bs())
+		mdelay(3);
+	else
+		udelay(1000);
 
 	debug("tsadc probed successfully\n");
 
@@ -1072,6 +1122,10 @@ static const struct udevice_id rockchip_thermal_match[] = {
 	{
 		.compatible = "rockchip,rk3308-tsadc",
 		.data = (ulong)&rk3308_tsadc_data,
+	},
+	{
+		.compatible = "rockchip,rk3308bs-tsadc",
+		.data = (ulong)&rk3308bs_tsadc_data,
 	},
 	{
 		.compatible = "rockchip,rk3328-tsadc",

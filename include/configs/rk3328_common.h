@@ -9,7 +9,7 @@
 
 #include "rockchip-common.h"
 
-#define CONFIG_SYS_MALLOC_LEN		(128 << 20)
+#define CONFIG_SYS_MALLOC_LEN		(32 << 20)
 #define CONFIG_SYS_CBSIZE		1024
 #define CONFIG_SKIP_LOWLEVEL_INIT
 
@@ -46,10 +46,6 @@
 #define CONFIG_SYS_SDRAM_BASE		0
 #define SDRAM_MAX_SIZE			0xff000000
 
-#define CONFIG_SPI_FLASH
-#define CONFIG_SPI
-#define CONFIG_SF_DEFAULT_SPEED 20000000
-
 #ifndef CONFIG_SPL_BUILD
 
 /* usb mass storage */
@@ -58,9 +54,9 @@
 #define ENV_MEM_LAYOUT_SETTINGS \
 	"scriptaddr=0x00500000\0" \
 	"pxefile_addr_r=0x00600000\0" \
-	"fdt_addr_r=0x01f00000\0" \
+	"fdt_addr_r=0x08300000\0" \
 	"kernel_addr_r=0x00280000\0" \
-	"ramdisk_addr_r=0x04000000\0"
+	"ramdisk_addr_r=0x0a200000\0"
 
 #include <config_distro_bootcmd.h>
 #define CONFIG_EXTRA_ENV_SETTINGS \

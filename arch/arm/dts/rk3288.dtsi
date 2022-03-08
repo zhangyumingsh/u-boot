@@ -211,6 +211,7 @@
 			 <&cru SCLK_SDMMC_DRV>, <&cru SCLK_SDMMC_SAMPLE>;
 		clock-names = "biu", "ciu", "ciu-drv", "ciu-sample";
 		fifo-depth = <0x100>;
+		cd-gpios = <&gpio6 RK_PC6 GPIO_ACTIVE_HIGH>;
 		interrupts = <GIC_SPI 32 IRQ_TYPE_LEVEL_HIGH>;
 		reg = <0xff0c0000 0x4000>;
 		status = "disabled";
@@ -693,6 +694,14 @@
 		clocks = <&cru HCLK_I2S0>, <&cru SCLK_I2S0>;
 		pinctrl-names = "default";
 		pinctrl-0 = <&i2s0_bus>;
+		status = "disabled";
+	};
+
+	crypto: crypto@ff8a0000 {
+		compatible = "rockchip,rk3288-crypto";
+		reg = <0xff8a0000 0x10000>;
+		clock-names = "sclk_crypto";
+		clocks = <&cru SCLK_CRYPTO>;
 		status = "disabled";
 	};
 

@@ -5,35 +5,84 @@
  */
 
 #include <blk.h>
+#include <common.h>
 
 #include "rkflash_debug.h"
 #include "rkflash_blk.h"
 #include "boot_rkimg.h"
 
-void rkflash_print_hex(char *s, void *buf, u32 width, u32 len)
+static unsigned int rkflash_debug;
+
+__printf(1, 2) int rkflash_print_dio(const char *fmt, ...)
 {
-	u32 i, j;
-	char *p8 = (char *)buf;
-	short *p16 = (short *)buf;
-	u32 *p32 = (u32 *)buf;
+	int nret = 0;
+#if PRINT_SWI_CON_IO
+	if (rkflash_debug & PRINT_BIT_CON_IO)  {
+		va_list args;
 
-	j = 0;
-	for (i = 0; i < len; i++) {
-		if (j == 0)
-			printf("%s 0x%x:", s, i * width);
+		if (!fmt)
+			return nret;
 
-		if (width == 4)
-			printf("%x ", p32[i]);
-		else if (width == 2)
-			printf("%x ", p16[i]);
-		else
-			printf("%02x ", p8[i]);
-		if (++j >= 16) {
-			j = 0;
-			printf("\n");
-		}
+		va_start(args, fmt);
+		nret = vprintf(fmt, args);
+		va_end(args);
 	}
-	printf("\n");
+#endif
+	return nret;
+}
+
+__printf(1, 2) int rkflash_print_bio(const char *fmt, ...)
+{
+	int nret = 0;
+#if PRINT_SWI_BLK_IO
+	if (rkflash_debug & PRINT_BIT_BLK_IO)  {
+		va_list args;
+
+		if (!fmt)
+			return nret;
+
+		va_start(args, fmt);
+		nret = vprintf(fmt, args);
+		va_end(args);
+	}
+#endif
+	return nret;
+}
+
+__printf(1, 2) int rkflash_print_info(const char *fmt, ...)
+{
+	int nret = 0;
+#if PRINT_SWI_INFO
+	va_list args;
+
+	if (!fmt)
+		return nret;
+
+	va_start(args, fmt);
+	nret = vprintf(fmt, args);
+	va_end(args);
+#endif
+	return nret;
+}
+
+__printf(1, 2) int rkflash_print_error(const char *fmt, ...)
+{
+	int nret = 0;
+#if PRINT_SWI_ERROR
+	va_list args;
+
+	if (!fmt)
+		return nret;
+
+	va_start(args, fmt);
+	nret = vprintf(fmt, args);
+	va_end(args);
+#endif
+	return nret;
+}
+
+void rkflash_print_hex(const char *s, const void *buf, int w, size_t len)
+{
 }
 
 #if (BLK_STRESS_TEST_EN)
@@ -45,7 +94,7 @@ void blk_stress_test(struct udevice *udev)
 {
 	struct blk_desc *block_dev = rockchip_get_bootdev();
 	u16 i, j, loop = 0;
-	u32 test_end_lba;
+	u32 test_end_lba, test_begin_lba;
 	u32 test_lba;
 	u16 test_sec_count = 1;
 	u16 print_flag;
@@ -56,15 +105,16 @@ void blk_stress_test(struct udevice *udev)
 	}
 
 	if (block_dev->if_type == IF_TYPE_SPINOR)
-		test_lba = 0x800;
+		test_begin_lba = 0x4000;
 	else
-		test_lba = 0;
+		test_begin_lba = 0x8000;
 
 	test_end_lba = block_dev->lba;
 	pwrite32 = (u32 *)pwrite;
 	for (i = 0; i < (max_test_sector * 512); i++)
 		pwrite[i] = i;
-	for (loop = 0; loop < 10; loop++) {
+	for (loop = 0; loop < 100; loop++) {
+		test_lba = test_begin_lba;
 		printf("---------Test loop = %d---------\n", loop);
 		printf("---------Test ftl write---------\n");
 		test_sec_count = 1;
@@ -76,6 +126,7 @@ void blk_stress_test(struct udevice *udev)
 			blk_dread(block_dev, test_lba, test_sec_count, pread);
 			for (j = 0; j < test_sec_count * 512; j++) {
 				if (pwrite[j] != pread[j]) {
+					printf("rkflash stress test fail\n");
 					rkflash_print_hex("w:",
 							  pwrite,
 							  4,
@@ -91,7 +142,6 @@ void blk_stress_test(struct udevice *udev)
 					       pread[j]);
 					while (1)
 						;
-					break;
 				}
 			}
 			print_flag = test_lba & 0x1FF;
@@ -104,6 +154,7 @@ void blk_stress_test(struct udevice *udev)
 		}
 		printf("---------Test ftl check---------\n");
 
+		test_lba = test_begin_lba;
 		test_sec_count = 1;
 		for (; (test_lba + test_sec_count) < test_end_lba;) {
 			pwrite32[0] = test_lba;
@@ -114,13 +165,14 @@ void blk_stress_test(struct udevice *udev)
 
 			for (j = 0; j < test_sec_count * 512; j++) {
 				if (pwrite[j] != pread[j]) {
+					printf("rkflash stress test fail\n");
 					printf("r=%x, n=%x, w=%x, r=%x\n",
 					       test_lba,
 					       j,
 					       pwrite[j],
 					       pread[j]);
-					/* while(1); */
-					break;
+					while (1)
+						;
 				}
 			}
 			test_lba += test_sec_count;

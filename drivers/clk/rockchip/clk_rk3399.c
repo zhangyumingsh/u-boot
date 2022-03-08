@@ -252,6 +252,10 @@ enum {
 	DCLK_VOP_DIV_CON_MASK           = 0xff,
 	DCLK_VOP_DIV_CON_SHIFT          = 0,
 
+	/* CLKSEL_CON57 */
+	PCLK_ALIVE_DIV_CON_SHIFT	= 0,
+	PCLK_ALIVE_DIV_CON_MASK		= 0x1f << PCLK_ALIVE_DIV_CON_SHIFT,
+
 	/* CLKSEL_CON58 */
 	CLK_SPI_PLL_SEL_WIDTH = 1,
 	CLK_SPI_PLL_SEL_MASK = ((1 < CLK_SPI_PLL_SEL_WIDTH) - 1),
@@ -530,15 +534,15 @@ void rk3399_configure_cpu(struct rk3399_cru *cru,
 	rkclk_set_pll(pll_con, apll_cfgs[freq]);
 
 	aclkm_div = apll_hz / ACLKM_CORE_HZ - 1;
-	assert((aclkm_div + 1) * ACLKM_CORE_HZ == apll_hz &&
+	assert((aclkm_div + 1) * ACLKM_CORE_HZ <= apll_hz &&
 	       aclkm_div < 0x1f);
 
 	pclk_dbg_div = apll_hz / PCLK_DBG_HZ - 1;
-	assert((pclk_dbg_div + 1) * PCLK_DBG_HZ == apll_hz &&
+	assert((pclk_dbg_div + 1) * PCLK_DBG_HZ <= apll_hz &&
 	       pclk_dbg_div < 0x1f);
 
 	atclk_div = apll_hz / ATCLK_CORE_HZ - 1;
-	assert((atclk_div + 1) * ATCLK_CORE_HZ == apll_hz &&
+	assert((atclk_div + 1) * ATCLK_CORE_HZ <= apll_hz &&
 	       atclk_div < 0x1f);
 
 	rk_clrsetreg(&cru->clksel_con[con_base],
@@ -911,23 +915,31 @@ static ulong rk3399_ddr_set_clk(struct rk3399_cru *cru,
 
 	/*  clk_ddrc == DPLL = 24MHz / refdiv * fbdiv / postdiv1 / postdiv2 */
 	switch (set_rate) {
-	case 200*MHz:
+	case 50 * MHz:
+		dpll_cfg = (struct pll_div)
+		{.refdiv = 1, .fbdiv = 12, .postdiv1 = 3, .postdiv2 = 2};
+		break;
+	case 200 * MHz:
 		dpll_cfg = (struct pll_div)
 		{.refdiv = 1, .fbdiv = 50, .postdiv1 = 6, .postdiv2 = 1};
 		break;
-	case 300*MHz:
+	case 300 * MHz:
 		dpll_cfg = (struct pll_div)
 		{.refdiv = 2, .fbdiv = 100, .postdiv1 = 4, .postdiv2 = 1};
 		break;
-	case 666*MHz:
+	case 400 * MHz:
+		dpll_cfg = (struct pll_div)
+		{.refdiv = 1, .fbdiv = 50, .postdiv1 = 3, .postdiv2 = 1};
+		break;
+	case 666 * MHz:
 		dpll_cfg = (struct pll_div)
 		{.refdiv = 2, .fbdiv = 111, .postdiv1 = 2, .postdiv2 = 1};
 		break;
-	case 800*MHz:
+	case 800 * MHz:
 		dpll_cfg = (struct pll_div)
 		{.refdiv = 1, .fbdiv = 100, .postdiv1 = 3, .postdiv2 = 1};
 		break;
-	case 933*MHz:
+	case 933 * MHz:
 		dpll_cfg = (struct pll_div)
 		{.refdiv = 1, .fbdiv = 116, .postdiv1 = 3, .postdiv2 = 1};
 		break;
@@ -1109,6 +1121,17 @@ static ulong rk3399_peri_get_clk(struct rk3399_clk_priv *priv, ulong clk_id)
 	return DIV_TO_RATE(parent, div);
 }
 
+static ulong rk3399_alive_get_clk(struct rk3399_clk_priv *priv)
+{
+	struct rk3399_cru *cru = priv->cru;
+	u32 div, con, parent;
+
+	con = readl(&cru->clksel_con[57]);
+	div = (con & PCLK_ALIVE_DIV_CON_MASK) >>
+	      PCLK_ALIVE_DIV_CON_SHIFT;
+	parent = GPLL_HZ;
+	return DIV_TO_RATE(parent, div);
+}
 #endif
 
 static ulong rk3399_clk_get_rate(struct clk *clk)
@@ -1175,6 +1198,10 @@ static ulong rk3399_clk_get_rate(struct clk *clk)
 	case HCLK_PERILP1:
 	case PCLK_PERILP1:
 		rate = rk3399_peri_get_clk(priv, clk->id);
+		break;
+	case PCLK_ALIVE:
+	case PCLK_WDT:
+		rate = rk3399_alive_get_clk(priv);
 		break;
 #endif
 	default:
@@ -1389,11 +1416,11 @@ static void rkclk_init(struct rk3399_cru *cru)
 	aclk_div = DIV_ROUND_UP(GPLL_HZ, PERIHP_ACLK_HZ) - 1;
 
 	hclk_div = PERIHP_ACLK_HZ / PERIHP_HCLK_HZ - 1;
-	assert((hclk_div + 1) * PERIHP_HCLK_HZ ==
+	assert((hclk_div + 1) * PERIHP_HCLK_HZ <=
 	       PERIHP_ACLK_HZ && (hclk_div <= 0x3));
 
 	pclk_div = PERIHP_ACLK_HZ / PERIHP_PCLK_HZ - 1;
-	assert((pclk_div + 1) * PERIHP_PCLK_HZ ==
+	assert((pclk_div + 1) * PERIHP_PCLK_HZ <=
 	       PERIHP_ACLK_HZ && (pclk_div <= 0x7));
 
 	rk_clrsetreg(&cru->clksel_con[14],
@@ -1408,11 +1435,11 @@ static void rkclk_init(struct rk3399_cru *cru)
 	aclk_div = DIV_ROUND_UP(GPLL_HZ, PERILP0_ACLK_HZ) - 1;
 
 	hclk_div = PERILP0_ACLK_HZ / PERILP0_HCLK_HZ - 1;
-	assert((hclk_div + 1) * PERILP0_HCLK_HZ ==
+	assert((hclk_div + 1) * PERILP0_HCLK_HZ <=
 	       PERILP0_ACLK_HZ && (hclk_div <= 0x3));
 
 	pclk_div = PERILP0_ACLK_HZ / PERILP0_PCLK_HZ - 1;
-	assert((pclk_div + 1) * PERILP0_PCLK_HZ ==
+	assert((pclk_div + 1) * PERILP0_PCLK_HZ <=
 	       PERILP0_ACLK_HZ && (pclk_div <= 0x7));
 
 	rk_clrsetreg(&cru->clksel_con[23],
@@ -1425,11 +1452,11 @@ static void rkclk_init(struct rk3399_cru *cru)
 
 	/* perilp1 hclk select gpll as source */
 	hclk_div = DIV_ROUND_UP(GPLL_HZ, PERILP1_HCLK_HZ) - 1;
-	assert((hclk_div + 1) * PERILP1_HCLK_HZ ==
+	assert((hclk_div + 1) * PERILP1_HCLK_HZ <=
 	       GPLL_HZ && (hclk_div <= 0x1f));
 
 	pclk_div = PERILP1_HCLK_HZ / PERILP1_PCLK_HZ - 1;
-	assert((pclk_div + 1) * PERILP1_PCLK_HZ ==
+	assert((pclk_div + 1) * PERILP1_PCLK_HZ <=
 	       PERILP1_HCLK_HZ && (pclk_div <= 0x7));
 
 	rk_clrsetreg(&cru->clksel_con[25],
@@ -1445,6 +1472,27 @@ static void rkclk_init(struct rk3399_cru *cru)
 		     (4 - 1) << ACLK_EMMC_DIV_CON_SHIFT);
 	rk_clrsetreg(&cru->clksel_con[22], 0x3f << 0, 7 << 0);
 
+	/*
+	 * I2c MUx is in cpll by default, but cpll is for dclk_vop exclusive.
+	 * If dclk_vop set rate after i2c init, the CPLL changed,
+	 * but the i2c not perception, it will resulting the wrong
+	 * frequency of the i2c.
+	 * So set the i2c frequency according to the kernel configuration,
+	 * and Hang I2C on the GPLL.
+	 */
+	rk_clrsetreg(&cru->clksel_con[61], I2C_CLK_REG_MASK(1),
+		     I2C_CLK_REG_VALUE(1, 4));
+	rk_clrsetreg(&cru->clksel_con[62], I2C_CLK_REG_MASK(2),
+		     I2C_CLK_REG_VALUE(2, 4));
+	rk_clrsetreg(&cru->clksel_con[63], I2C_CLK_REG_MASK(3),
+		     I2C_CLK_REG_VALUE(3, 4));
+	rk_clrsetreg(&cru->clksel_con[61], I2C_CLK_REG_MASK(5),
+		     I2C_CLK_REG_VALUE(5, 4));
+	rk_clrsetreg(&cru->clksel_con[62], I2C_CLK_REG_MASK(6),
+		     I2C_CLK_REG_VALUE(6, 4));
+	rk_clrsetreg(&cru->clksel_con[63], I2C_CLK_REG_MASK(7),
+		     I2C_CLK_REG_VALUE(7, 4));
+
 	rkclk_set_pll(&cru->gpll_con[0], &gpll_init_cfg);
 }
 
@@ -1457,7 +1505,22 @@ static int rk3399_clk_probe(struct udevice *dev)
 
 	priv->cru = map_sysmem(plat->dtd.reg[0], plat->dtd.reg[1]);
 #endif
+
+	priv->sync_kernel = false;
+	if (!priv->armlclk_enter_hz)
+		priv->armlclk_enter_hz =
+		rkclk_pll_get_rate(&priv->cru->apll_l_con[0]);
+	if (!priv->armbclk_enter_hz)
+		priv->armbclk_enter_hz =
+		rkclk_pll_get_rate(&priv->cru->apll_b_con[0]);
 	rkclk_init(priv->cru);
+	if (!priv->armlclk_init_hz)
+		priv->armlclk_init_hz =
+		rkclk_pll_get_rate(&priv->cru->apll_l_con[0]);
+	if (!priv->armbclk_init_hz)
+		priv->armbclk_init_hz =
+		rkclk_pll_get_rate(&priv->cru->apll_b_con[0]);
+
 	return 0;
 }
 
@@ -1598,6 +1661,7 @@ static ulong rk3399_pmuclk_get_rate(struct clk *clk)
 
 	switch (clk->id) {
 	case PCLK_RKPWM_PMU:
+	case PCLK_WDT_M0_PMU:
 		rate = rk3399_pwm_get_clk(priv->pmucru);
 		break;
 	case SCLK_I2C0_PMU:
@@ -1733,6 +1797,7 @@ U_BOOT_DRIVER(rockchip_rk3399_pmuclk) = {
 int soc_clk_dump(void)
 {
 	struct udevice *cru_dev, *pmucru_dev;
+	struct rk3399_clk_priv *priv;
 	const struct rk3399_clk_info *clk_dump;
 	struct clk clk;
 	unsigned long clk_count = ARRAY_SIZE(clks_dump);
@@ -1755,7 +1820,19 @@ int soc_clk_dump(void)
 		return ret;
 	}
 
-	printf("CLK:\n");
+	priv = dev_get_priv(cru_dev);
+	printf("CLK: (%s. arml: enter %lu KHz, init %lu KHz, kernel %lu%s)\n",
+	       priv->sync_kernel ? "sync kernel" : "uboot",
+	       priv->armlclk_enter_hz / 1000,
+	       priv->armlclk_init_hz / 1000,
+	       priv->set_armclk_rate ? priv->armlclk_hz / 1000 : 0,
+	       priv->set_armclk_rate ? " KHz" : "N/A");
+	printf("CLK: (%s. armb: enter %lu KHz, init %lu KHz, kernel %lu%s)\n",
+	       priv->sync_kernel ? "sync kernel" : "uboot",
+	       priv->armbclk_enter_hz / 1000,
+	       priv->armbclk_init_hz / 1000,
+	       priv->set_armclk_rate ? priv->armbclk_hz / 1000 : 0,
+	       priv->set_armclk_rate ? " KHz" : "N/A");
 	for (i = 0; i < clk_count; i++) {
 		clk_dump = &clks_dump[i];
 		if (clk_dump->name) {
@@ -1771,17 +1848,17 @@ int soc_clk_dump(void)
 			clk_free(&clk);
 			if (i == 0) {
 				if (rate < 0)
-					printf("%s %s\n", clk_dump->name,
+					printf("  %s %s\n", clk_dump->name,
 					       "unknown");
 				else
-					printf("%s %lu KHz\n", clk_dump->name,
+					printf("  %s %lu KHz\n", clk_dump->name,
 					       rate / 1000);
 			} else {
 				if (rate < 0)
-					printf("%s %s\n", clk_dump->name,
+					printf("  %s %s\n", clk_dump->name,
 					       "unknown");
 				else
-					printf("%s %lu KHz\n", clk_dump->name,
+					printf("  %s %lu KHz\n", clk_dump->name,
 					       rate / 1000);
 			}
 		}

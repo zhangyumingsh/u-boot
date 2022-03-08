@@ -42,7 +42,41 @@
 
 #define OTPC_TIMEOUT			10000
 
-typedef int (*OTP_READ)(struct udevice *dev, int offset, void *buf, int size);
+#define OTPC_MODE_CTRL			0x2000
+#define OTPC_IRQ_ST			0x2008
+#define OTPC_ACCESS_ADDR		0x200c
+#define OTPC_RD_DATA			0x2010
+#define OTPC_REPR_RD_TRANS_NUM		0x2020
+#define OTPC_DEEP_STANDBY		0x0
+#define OTPC_STANDBY			0x1
+#define OTPC_ACTIVE			0x2
+#define OTPC_READ_ACCESS		0x3
+#define OTPC_TRANS_NUM			0x1
+#define OTPC_RDM_IRQ_ST			BIT(0)
+#define OTPC_STB2ACT_IRQ_ST		BIT(7)
+#define OTPC_DP2STB_IRQ_ST		BIT(8)
+#define OTPC_ACT2STB_IRQ_ST		BIT(9)
+#define OTPC_STB2DP_IRQ_ST		BIT(10)
+#define RK3308BS_NBYTES			4
+#define RK3308BS_MAX_BYTES		0x80
+#define RK3308BS_NO_SECURE_OFFSET	224
+
+#define RK3568_NBYTES			2
+
+#define RV1126_OTP_NVM_CEB		0x00
+#define RV1126_OTP_NVM_RSTB		0x04
+#define RV1126_OTP_NVM_ST		0x18
+#define RV1126_OTP_NVM_RADDR		0x1C
+#define RV1126_OTP_NVM_RSTART		0x20
+#define RV1126_OTP_NVM_RDATA		0x24
+#define RV1126_OTP_NVM_TRWH		0x28
+#define RV1126_OTP_READ_ST		0x30
+#define RV1126_OTP_NVM_PRADDR		0x34
+#define RV1126_OTP_NVM_PRLEN		0x38
+#define RV1126_OTP_NVM_PRDATA		0x3c
+#define RV1126_OTP_NVM_FAILTIME		0x40
+#define RV1126_OTP_NVM_PRSTART		0x44
+#define RV1126_OTP_NVM_PRSTATE		0x48
 
 struct rockchip_otp_platdata {
 	void __iomem *base;

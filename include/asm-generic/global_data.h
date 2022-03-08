@@ -83,6 +83,9 @@ typedef struct global_data {
 	struct udevice	*timer;		/* Timer instance for Driver Model */
 #endif
 
+#ifdef CONFIG_USING_KERNEL_DTB
+	const void *fdt_blob_kern;	/* Kernel dtb at the tail of u-boot.bin */
+#endif
 	const void *fdt_blob;		/* Our device tree, NULL if none */
 	void *new_fdt;			/* Relocated FDT */
 	unsigned long fdt_size;		/* Space reserved for relocated FDT */
@@ -134,6 +137,8 @@ typedef struct global_data {
 	int new_line;
 #endif
 	struct pre_serial serial;
+	ulong sys_start_tick;		/* For report system start-up time */
+	int console_evt;		/* Console event, maybe some hotkey  */
 #ifdef CONFIG_LOG
 	int log_drop_count;		/* Number of dropped log messages */
 	int default_log_level;		/* For devices with no filters */
@@ -169,8 +174,6 @@ typedef struct global_data {
 #define GD_FLG_LOG_READY	0x08000 /* Log system is ready for use	   */
 
 #ifdef CONFIG_ARCH_ROCKCHIP
-/* Currently, we use it to indicate console can be flushed before jump to OS */
-#define GD_FLG_OS_RUN		0x10000
 /* BL32 is enabled */
 #define GD_FLG_BL32_ENABLED	0x20000
 #endif

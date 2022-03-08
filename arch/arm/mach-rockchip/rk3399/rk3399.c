@@ -73,6 +73,8 @@ void rockchip_stimer_init(void)
 #define PMUGRF_BASE	0xff320000
 #define PMUSGRF_BASE	0xff330000
 #define PMUCRU_BASE	0xff750000
+#define NIU_PERILP_NSP_ADDR	0xffad8188
+#define QOS_PRIORITY_LEVEL(h, l)	((((h) & 3) << 8) | ((l) & 3))
 
 int arch_cpu_init(void)
 {
@@ -111,6 +113,9 @@ int arch_cpu_init(void)
 	writel(0x01000100, &pmucru->pmucru_clkgate_con[0]);
 #endif
 
+	/* Set perilp_nsp QOS priority to 3 for USB 3.0 */
+	writel(QOS_PRIORITY_LEVEL(3, 3), NIU_PERILP_NSP_ADDR);
+
 	return 0;
 }
 
@@ -128,7 +133,7 @@ void board_debug_uart_init(void)
 		     GRF_GPIO2C1_SEL_MASK,
 		     GRF_UART0BT_SOUT << GRF_GPIO2C1_SEL_SHIFT);
 #else
-	/* Enable early UART2 channel C on the RK3399/RK3399PRO */
+	/* Enable early UART2 channel on the RK3399/RK3399PRO */
 	rk_clrsetreg(&grf->gpio4c_iomux,
 		     GRF_GPIO4C3_SEL_MASK,
 		     GRF_UART2DGBC_SIN << GRF_GPIO4C3_SEL_SHIFT);
