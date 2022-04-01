@@ -665,6 +665,8 @@ pack_loader_image()
 {
 	local mode=$1 files ini=${RKBIN}/RKBOOT/${RKCHIP_LOADER}MINIALL.ini
 
+	local ini2=${RKBIN}/RKBOOT/${RKCHIP_LOADER}MINIALL_UART0_SD_NAND.ini
+
 	if [ "$FILE" != "" ]; then
 		if grep -q 'CODE471_OPTION' $FILE ; then
 			ini=$FILE;
@@ -673,6 +675,11 @@ pack_loader_image()
 
 	if [ ! -f $ini ]; then
 		echo "pack loader failed! Can't find: $ini"
+		return
+	fi
+
+	if [ ! -f $ini2 ]; then
+		echo "pack loader failed! Can't find: $ini2"
 		return
 	fi
 
@@ -692,6 +699,8 @@ pack_loader_image()
 		${RKTOOLS}/boot_merger ${BIN_PATH_FIXUP} $ini
 		echo "pack loader okay! Input: $ini"
 	fi
+
+	${RKTOOLS}/boot_merger ${BIN_PATH_FIXUP} $ini2
 
 	cd - && mv ${RKBIN}/*_loader_*.bin ./
 }
