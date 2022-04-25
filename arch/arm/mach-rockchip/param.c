@@ -164,7 +164,26 @@ struct memblock param_parse_common_resv_mem(void)
 	return mem;
 }
 
-int param_parse_bootdev(char **devtype, char **devnum)
+int param_parse_assign_bootdev(char **devtype, char **devnum)
+{
+	char *bootdev_str = CONFIG_ROCKCHIP_BOOTDEV;
+	char *type, *num;
+
+	num = strchr(bootdev_str, ' ');
+	if (!num)
+		return -ENODEV;
+
+	type = strdup(bootdev_str);
+	type[num - bootdev_str] = 0;
+	num++;
+
+	*devtype = type;
+	*devnum = num;
+
+	return 0;
+}
+
+int param_parse_atags_bootdev(char **devtype, char **devnum)
 {
 #ifdef CONFIG_ROCKCHIP_PRELOADER_ATAGS
 	struct tag *t;
@@ -280,6 +299,11 @@ struct memblock *param_parse_ddr_mem(int *out_count)
 
 	t = atags_get_tag(ATAG_DDR_MEM);
 	if (t && t->u.ddr_mem.count) {
+		/* extend top ram size */
+		if (t->u.ddr_mem.flags & DDR_MEM_FLG_EXT_TOP)
+			gd->ram_top_ext_size = t->u.ddr_mem.data[0];
+
+		/* normal ram size */
 		count = t->u.ddr_mem.count;
 		mem = calloc(count + MEM_RESV_COUNT, sizeof(*mem));
 		if (!mem) {
