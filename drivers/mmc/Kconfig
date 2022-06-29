@@ -289,15 +289,6 @@ config MMC_MESON_GX
 	help
 	 Support for EMMC host controller on Meson GX ARM SoCs platform (S905)
 
-config MMC_MESON_GX_HS52_MODE
-	bool "Enable MMC High Speed 52MHz mode for Meson GX EMMC controller"
-	depends on MMC_MESON_GX
-	default y
-	help
-	 This selects HS52 mode for Meson controller. Some boards have stability
-	 issue when eMMC is running at this speed, and turning HS52 off allows
-	 eMMC to function properly.
-
 config MMC_MXC
 	bool "Freescale i.MX21/27/31 or MPC512x Multimedia Card support"
 	help
