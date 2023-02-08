@@ -66,6 +66,11 @@ __weak int rk_board_fdt_fixup(void *blob)
 	return 0;
 }
 
+__weak int rk_board_dm_fdt_fixup(void *blob)
+{
+	return 0;
+}
+
 __weak int soc_clk_dump(void)
 {
 	return 0;
@@ -123,7 +128,7 @@ static int rockchip_set_ethaddr(void)
 		}
 
 		if (is_valid_ethaddr(&ethaddr[i * ARP_HLEN])) {
-			sprintf(buf, "%pM", &ethaddr[i * ARP_HLEN]);
+			snprintf(buf, ARP_HLEN_ASCII + 1, "%pM", &ethaddr[i * ARP_HLEN]);
 			if (i == 0)
 				memcpy(mac, "ethaddr", sizeof("ethaddr"));
 			else
@@ -158,20 +163,28 @@ static int rockchip_set_serialno(void)
 	memset(serialno_str, 0, VENDOR_SN_MAX);
 
 #ifdef CONFIG_ROCKCHIP_VENDOR_PARTITION
+	int j;
+
 	ret = vendor_storage_read(SN_ID, serialno_str, (VENDOR_SN_MAX-1));
 	if (ret > 0) {
-		i = strlen(serialno_str);
-		for (; i > 0; i--) {
+		j = strlen(serialno_str);
+		for (i = 0; i < j; i++) {
 			if ((serialno_str[i] >= 'a' && serialno_str[i] <= 'z') ||
 			    (serialno_str[i] >= 'A' && serialno_str[i] <= 'Z') ||
 			    (serialno_str[i] >= '0' && serialno_str[i] <= '9'))
+				continue;
+			else
 				break;
 		}
 
-		serialno_str[i + 1] = 0x0;
-		env_set("serial#", serialno_str);
-	} else {
+		/* valid character count > 0 */
+		if (i > 0) {
+			serialno_str[i + 1] = 0x0;
+			env_set("serial#", serialno_str);
+		}
+	}
 #endif
+	if (!env_get("serial#")) {
 #if defined(CONFIG_ROCKCHIP_EFUSE) || defined(CONFIG_ROCKCHIP_OTP)
 		struct udevice *dev;
 
@@ -213,14 +226,11 @@ static int rockchip_set_serialno(void)
 		snprintf(serialno_str, sizeof(serialno_str), "%llx", serialno);
 
 		env_set("serial#", serialno_str);
-#ifdef CONFIG_ROCKCHIP_VENDOR_PARTITION
 	}
-#endif
 
 	return ret;
 }
 #endif
-
 
 #if defined(CONFIG_USB_FUNCTION_FASTBOOT)
 int fb_set_reboot_flag(void)
@@ -236,30 +246,48 @@ int fb_set_reboot_flag(void)
 static int boot_from_udisk(void)
 {
 	struct blk_desc *desc;
-	char *devtype;
-	char *devnum;
-
-	devtype = env_get("devtype");
-	devnum = env_get("devnum");
+	struct udevice *dev;
+	int devnum = -1;
+	char buf[32];
 
 	/* Booting priority: mmc1 > udisk */
-	if (!strcmp(devtype, "mmc") && !strcmp(devnum, "1"))
+	if (!strcmp(env_get("devtype"), "mmc") && !strcmp(env_get("devnum"), "1"))
 		return 0;
 
 	if (!run_command("usb start", -1)) {
-		desc = blk_get_devnum_by_type(IF_TYPE_USB, 0);
-		if (!desc) {
-			printf("No usb device found\n");
+		for (blk_first_device(IF_TYPE_USB, &dev);
+		     dev;
+		     blk_next_device(&dev)) {
+			desc = dev_get_uclass_platdata(dev);
+			printf("Scanning usb %d ...\n", desc->devnum);
+			if (desc->type == DEV_TYPE_UNKNOWN)
+				continue;
+
+			if (desc->lba > 0L && desc->blksz > 0L) {
+				devnum = desc->devnum;
+				break;
+			}
+		}
+		if (devnum < 0) {
+			printf("No usb mass storage found\n");
 			return -ENODEV;
 		}
 
-		if (!run_command("rkimgtest usb 0", -1)) {
+		desc = blk_get_devnum_by_type(IF_TYPE_USB, devnum);
+		if (!desc) {
+			printf("No usb %d found\n", devnum);
+			return -ENODEV;
+		}
+
+		snprintf(buf, 32, "rkimgtest usb %d", devnum);
+		if (!run_command(buf, -1)) {
+			snprintf(buf, 32, "%d", devnum);
 			rockchip_set_bootdev(desc);
 			env_set("devtype", "usb");
-			env_set("devnum", "0");
-			printf("Boot from usb 0\n");
+			env_set("devnum", buf);
+			printf("=== Booting from usb %d ===\n", devnum);
 		} else {
-			printf("No usb dev 0 found\n");
+			printf("No available udisk image on usb %d\n", devnum);
 			return -ENODEV;
 		}
 	}
@@ -348,6 +376,8 @@ static void env_fixup(void)
 static void cmdline_handle(void)
 {
 	struct blk_desc *dev_desc;
+	int if_type;
+	int devnum;
 
 	param_parse_pubkey_fuse_programmed();
 
@@ -356,14 +386,27 @@ static void cmdline_handle(void)
 		return;
 
 	/*
-	 * From rk356x, the sd/udisk update flag was moved from
-	 * IDB to Android BCB.
+	 * 1. From rk356x, the sd/udisk recovery update flag was moved from
+	 *    IDB to Android BCB.
+	 *
+	 * 2. Udisk is init at the late boot_from_udisk(), but
+	 *    rockchip_get_boot_mode() actually only read once,
+	 *    we need to update boot mode according to udisk BCB.
 	 */
-	if (get_bcb_recovery_msg() == BCB_MSG_RECOVERY_RK_FWUPDATE) {
-		if (dev_desc->if_type == IF_TYPE_MMC && dev_desc->devnum == 1)
-			env_update("bootargs", "sdfwupdate");
-		else if (dev_desc->if_type == IF_TYPE_USB && dev_desc->devnum == 0)
-			env_update("bootargs", "usbfwupdate");
+	if_type = dev_desc->if_type;
+	devnum = dev_desc->devnum;
+	if ((if_type == IF_TYPE_MMC && devnum == 1) || (if_type == IF_TYPE_USB)) {
+		if (get_bcb_recovery_msg() == BCB_MSG_RECOVERY_RK_FWUPDATE) {
+			if (if_type == IF_TYPE_MMC && devnum == 1) {
+				env_update("bootargs", "sdfwupdate");
+			} else if (if_type == IF_TYPE_USB) {
+				env_update("bootargs", "usbfwupdate");
+				env_set("reboot_mode", "recovery-usb");
+			}
+		} else {
+			if (if_type == IF_TYPE_USB)
+				env_set("reboot_mode", "normal");
+		}
 	}
 }
 
@@ -376,9 +419,7 @@ int board_late_init(void)
 	rockchip_set_serialno();
 #endif
 	setup_download_mode();
-#if (CONFIG_ROCKCHIP_BOOT_MODE_REG > 0)
-	setup_boot_mode();
-#endif
+
 #ifdef CONFIG_ROCKCHIP_USB_BOOT
 	boot_from_udisk();
 #endif
@@ -390,6 +431,9 @@ int board_late_init(void)
 #endif
 #ifdef CONFIG_ROCKCHIP_EINK_DISPLAY
 	rockchip_eink_show_uboot_logo();
+#endif
+#if (CONFIG_ROCKCHIP_BOOT_MODE_REG > 0)
+	setup_boot_mode();
 #endif
 	env_fixup();
 	soc_clk_dump();
@@ -505,6 +549,12 @@ int interrupt_debugger_init(void)
 
 int board_fdt_fixup(void *blob)
 {
+	/*
+	 * Device's platdata points to orignal fdt blob property,
+	 * access DM device before any fdt fixup.
+	 */
+	rk_board_dm_fdt_fixup(blob);
+
 	/* Common fixup for DRM */
 #ifdef CONFIG_DRM_ROCKCHIP
 	rockchip_display_fixup(blob);
@@ -691,8 +741,12 @@ int board_init_f_boot_flags(void)
 {
 	int boot_flags = 0;
 
+#ifdef CONFIG_FPGA_ROCKCHIP
 	arch_fpga_init();
-
+#endif
+#ifdef CONFIG_PSTORE
+	param_parse_pstore();
+#endif
 	param_parse_pre_serial(&boot_flags);
 
 	/* The highest priority to turn off (override) console */
@@ -888,13 +942,13 @@ int board_do_bootm(int argc, char * const argv[])
 
 		if (!sysmem_alloc_base(MEM_ANDROID, (ulong)hdr, size))
 			return -ENOMEM;
-
+if (0) {
 		ret = bootm_image_populate_dtb(img);
 		if (ret) {
 			printf("bootm can't read dtb, ret=%d\n", ret);
 			return ret;
 		}
-
+}
 		ret = android_image_memcpy_separate(hdr, &load_addr);
 		if (ret) {
 			printf("board do bootm failed, ret=%d\n", ret);
@@ -950,7 +1004,7 @@ void autoboot_command_fail_handle(void)
 #endif
 
 #ifdef CONFIG_AVB_VBMETA_PUBLIC_KEY_VALIDATE
-	run_command("rockusb 0 ${devtype} ${devnum}", 0);
+	run_command("download", 0);
 	run_command("fastboot usb 0;", 0);
 #endif
 
@@ -1071,21 +1125,45 @@ char *board_fdt_chosen_bootargs(void *fdt)
 		 */
 #ifdef CONFIG_ANDROID_AB
 		env_update_filter("bootargs", bootargs, "root=");
+		ab_update_root_partition();
 #else
 		env_update("bootargs", bootargs);
 #endif
 	}
 
-#ifdef CONFIG_ENVF
-	char * sys_bootargs;
+#if defined(CONFIG_ENVF) || defined(CONFIG_ENV_PARTITION)
+	char *part_type[] = { "mtdparts", "blkdevparts" };
+	char *part_list;
+	char *env;
+	int id = 0;
 
-	sys_bootargs = env_get("sys_bootargs");
-	if (sys_bootargs) {
-		env_update("bootargs", sys_bootargs);
+	env = env_get(part_type[id]);
+	if (!env)
+		env = env_get(part_type[++id]);
+	if (env) {
+		if (!strstr(env, part_type[id])) {
+			part_list = calloc(1, strlen(env) + strlen(part_type[id]) + 2);
+			if (part_list) {
+				strcat(part_list, part_type[id]);
+				strcat(part_list, "=");
+				strcat(part_list, env);
+			}
+		} else {
+			part_list = env;
+		}
+		env_update("bootargs", part_list);
 		if (dump)
-			printf("## sys_bootargs: %s\n\n", sys_bootargs);
+			printf("## parts: %s\n\n", part_list);
+	}
+
+	env = env_get("sys_bootargs");
+	if (env) {
+		env_update("bootargs", env);
+		if (dump)
+			printf("## sys_bootargs: %s\n\n", env);
 	}
 #endif
+
 #ifdef CONFIG_MTD_BLK
 	if (!env_get("mtdparts")) {
 		char *mtd_par_info = mtd_part_parse(NULL);
