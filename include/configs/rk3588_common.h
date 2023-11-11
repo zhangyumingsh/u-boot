@@ -51,6 +51,8 @@
 #define CONFIG_USB_FUNCTION_MASS_STORAGE
 #define CONFIG_ROCKUSB_G_DNL_PID	0x350b
 
+#define CONFIG_MISC_INIT_R
+
 /*
  * decompressed kernel:  4M ~ 84M
  *	Why not start from 2M ? if kernel < 5.10 in Android image,
